@@ -240,6 +240,8 @@ def main():
 
     # ----- SETUP ----- #
 
+    # TODO: Pretty sure we're at episode 33 - virtualised tile maps
+
     tiles_0_0 = [
         [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
         [1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1],
@@ -379,7 +381,7 @@ def main():
         current_tile_map = get_tile_map(world, player.pos.tile_map_x, player.pos.tile_map_y)
         assert current_tile_map
 
-        baddy.mov.update(re_canonical_position, world, current_tile_map, baddy, player, delta)  # move_baddy(world, current_tile_map, baddy, player, delta)
+        baddy.mov.update(re_canonical_position, world, current_tile_map, baddy, player, delta)
         baddy_2.mov.update(re_canonical_position, world, current_tile_map, baddy_2, player, delta)
 
         # ----- RENDER ----- #
