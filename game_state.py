@@ -1,10 +1,3 @@
-class GameState(object):
-    player_tile_map_x = 0
-    player_tile_map_y = 0
-    player_x = 0
-    player_y = 0
-
-
 class World(object):
     def __init__(self):
         self.tile_side_in_metres = 0
@@ -34,14 +27,6 @@ class WorldPosition(object):
         self.tile_y = 0
         self.x = 0  # tile-relative x and y
         self.y = 0
-
-
-# class RawPosition(object):
-#     def __init__(self, tmx, tmy, x, y):
-#         self.tile_map_x = tmx
-#         self.tile_map_y = tmy
-#         self.x = x  # tile-map relative x and y
-#         self.y = y
 
 
 class GameInput(object):
