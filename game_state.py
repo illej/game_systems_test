@@ -5,8 +5,8 @@ class World(object):
         self.metres_to_pixels = 0
         self.count_x = 0
         self.count_y = 0
-        self.upper_left_x = 0
-        self.upper_left_y = 0
+        self.lower_left_x = 0
+        self.lower_left_y = 0
         self.tile_width = 0
         self.tile_height = 0
         self.tile_map_count_x = 0

@@ -1,4 +1,3 @@
-# from hh_py.game_controller_input import *
 import math
 import sys
 
@@ -79,8 +78,8 @@ def draw_debug_text(world, contents, entity, x_offset=0, y_offset=0):
     font = pygame.font.Font('freesansbold.ttf', 10)
     text_surface = font.render(contents, True, WHITE, BLACK)
     text_rect = text_surface.get_rect()
-    text_rect.left = x_offset + (world.metres_to_pixels * world.upper_left_x) + (world.tile_side_in_pixels * entity.pos.tile_x) + (world.metres_to_pixels * entity.pos.x) + (world.metres_to_pixels * entity.width)
-    text_rect.top = y_offset + (world.metres_to_pixels * world.upper_left_y) + (world.tile_side_in_pixels * entity.pos.tile_y) + (world.metres_to_pixels * entity.pos.y)
+    text_rect.left = x_offset + (world.metres_to_pixels * world.lower_left_x) + (world.tile_side_in_pixels * entity.pos.tile_x) + (world.metres_to_pixels * entity.pos.x) + (world.metres_to_pixels * entity.width)
+    text_rect.top = y_offset + (world.metres_to_pixels * world.lower_left_y) + (world.tile_side_in_pixels * entity.pos.tile_y) + (world.metres_to_pixels * entity.pos.y)
     SURFACE.blit(text_surface, text_rect)
 
 
@@ -300,8 +299,8 @@ def main():
     world.tile_side_in_metres = 1
     world.tile_side_in_pixels = 60
     world.metres_to_pixels = world.tile_side_in_pixels / world.tile_side_in_metres
-    world.upper_left_x = -(world.tile_side_in_pixels / 2)
-    world.upper_left_y = 0
+    world.lower_left_x = -(world.tile_side_in_pixels / 2)
+    world.lower_left_y = SURFACE.get_height()
     world.tile_maps = tile_maps
 
     player = Entity(0.75*world.tile_side_in_metres, world.tile_side_in_metres)
@@ -348,9 +347,9 @@ def main():
         player_y_delta = 0
 
         if keys[K_UP] is 1:
-            player_y_delta = -1
-        if keys[K_DOWN] is 1:
             player_y_delta = 1
+        if keys[K_DOWN] is 1:
+            player_y_delta = -1
         if keys[K_LEFT] is 1:
             player_x_delta = -1
         if keys[K_RIGHT] is 1:
@@ -402,43 +401,37 @@ def main():
                     grey = (50, 50, 50)
                 if (x, y) in baddy_2.mov.path:
                     grey = (50, 50, 50)
-                min_x = world.upper_left_x + x*world.tile_side_in_pixels
-                min_y = world.upper_left_y + y*world.tile_side_in_pixels
+                min_x = world.lower_left_x + x*world.tile_side_in_pixels
+                min_y = world.lower_left_y - y*world.tile_side_in_pixels
                 max_x = world.tile_side_in_pixels
-                max_y = world.tile_side_in_pixels
+                max_y = -world.tile_side_in_pixels
                 draw_rectangle(SURFACE, min_x, min_y, max_x, max_y, grey)
 
         # draw entities
-        player_left = world.upper_left_x + world.tile_side_in_pixels*player.pos.tile_x + \
-                      world.metres_to_pixels*player.pos.x - 0.5*world.metres_to_pixels*player.width
-        player_top = world.upper_left_y + world.tile_side_in_pixels*player.pos.tile_y + \
-                     world.metres_to_pixels*player.pos.y - world.metres_to_pixels*player.height
+        player_left = world.lower_left_x + world.tile_side_in_pixels * player.pos.tile_x + \
+                      world.metres_to_pixels * player.pos.x - 0.5 * world.metres_to_pixels * player.width
+        player_top = world.lower_left_y - world.tile_side_in_pixels * player.pos.tile_y - \
+                     world.metres_to_pixels * player.pos.y - world.metres_to_pixels * player.height
         draw_rectangle(SURFACE,
                        player_left, player_top,
                        world.metres_to_pixels*player.width,
                        world.metres_to_pixels*player.height,
                        BLUE)
-        # draw_rectangle(SURFACE,
-        #                (world.metres_to_pixels * world.upper_left_x) +
-        #                (world.tile_side_in_pixels * player.pos.tile_x) + (world.metres_to_pixels * player.pos.x),
-        #                (world.metres_to_pixels * world.upper_left_y) +
-        #                (world.tile_side_in_pixels * player.pos.tile_y) + (world.metres_to_pixels * player.pos.y),
-        #                (world.metres_to_pixels * player.width),
-        #                (world.metres_to_pixels * player.height), BLUE)
+
         # draw_rectangle(SURFACE, familiar.x, familiar.y, familiar.width, familiar.height, GREEN)
-        baddy_1_left = world.upper_left_x + world.tile_side_in_pixels * baddy.pos.tile_x + \
-                      world.metres_to_pixels * baddy.pos.x - 0.5 * world.metres_to_pixels * baddy.width
-        baddy_1_top = world.upper_left_y + world.tile_side_in_pixels * baddy.pos.tile_y + \
-                     world.metres_to_pixels * baddy.pos.y - world.metres_to_pixels * baddy.height
+        baddy_1_left = world.lower_left_x + world.tile_side_in_pixels * baddy.pos.tile_x + \
+                       world.metres_to_pixels * baddy.pos.x - 0.5 * world.metres_to_pixels * baddy.width
+        baddy_1_top = world.lower_left_y - world.tile_side_in_pixels * baddy.pos.tile_y - \
+                      world.metres_to_pixels * baddy.pos.y - world.metres_to_pixels * baddy.height
         draw_rectangle(SURFACE,
                        baddy_1_left, baddy_1_top,
                        world.metres_to_pixels*baddy.width,
                        world.metres_to_pixels*baddy.height,
                        RED)
 
-        baddy_2_left = world.upper_left_x + world.tile_side_in_pixels * baddy_2.pos.tile_x + \
+        baddy_2_left = world.lower_left_x + world.tile_side_in_pixels * baddy_2.pos.tile_x + \
                        world.metres_to_pixels * baddy_2.pos.x - 0.5 * world.metres_to_pixels * baddy_2.width
-        baddy_2_top = world.upper_left_y + world.tile_side_in_pixels * baddy_2.pos.tile_y + \
+        baddy_2_top = world.lower_left_y - world.tile_side_in_pixels * baddy_2.pos.tile_y - \
                       world.metres_to_pixels * baddy_2.pos.y - world.metres_to_pixels * baddy_2.height
         draw_rectangle(SURFACE,
                        baddy_2_left, baddy_2_top,
