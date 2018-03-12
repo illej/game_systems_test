@@ -297,7 +297,7 @@ def main():
     world.count_y = 9
     world.tile_map_count_x = len(tile_maps[0])
     world.tile_map_count_y = len(tile_maps)
-    world.tile_side_in_metres = 1.4
+    world.tile_side_in_metres = 1
     world.tile_side_in_pixels = 60
     world.metres_to_pixels = world.tile_side_in_pixels / world.tile_side_in_metres
     world.upper_left_x = -(world.tile_side_in_metres / 2)
