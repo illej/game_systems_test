@@ -138,12 +138,10 @@ class MovementComponent(object):
         return self.path
 
     def get_path(self, world, tile_map, start, goal):
-        count_x = 34
-        count_y = 18
-        grid = WeightedGrid(count_x, count_y)
+        grid = WeightedGrid(world.count_x, world.count_y)
 
-        for y in range(count_y):
-            for x in range(count_x):
+        for y in range(world.count_y):
+            for x in range(world.count_x):
                 if tile_map.tiles[y][x] == 1:
                     grid.walls.append((x, y))
 
@@ -183,8 +181,8 @@ class MovementComponent(object):
         return result
 
     def update(self, func, world, tile_map, actor, target, delta_time):
-        start = (actor.pos.abs_tile_x, actor.pos.abs_tile_y)
-        goal = (target.pos.abs_tile_x, target.pos.abs_tile_y)
+        start = (actor.pos.tile_x, actor.pos.tile_y)
+        goal = (target.pos.tile_x, target.pos.tile_y)
 
         if not self.target:
             self.target = goal
