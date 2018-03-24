@@ -83,38 +83,39 @@ def draw_rectangle(buffer, x, y, width, height, colour):
 #     SURFACE.blit(text_surface, text_rect)
 
 
-# OK
+# OK !!
 def get_tile_chunk(world, tile_chunk_x, tile_chunk_y):
-    tile_chunk = None
+    tile_chunk = 0
 
     if 0 <= tile_chunk_x < world.tile_chunk_count_x and \
             0 <= tile_chunk_y < world.tile_chunk_count_y:
-        tile_chunk = world.tile_chunks.tiles[tile_chunk_y][tile_chunk_x]
+        tile_chunk = world.tile_chunks[tile_chunk_y * world.tile_chunk_count_x + tile_chunk_x]  # .tiles[tile_chunk_y][tile_chunk_x]
 
     return tile_chunk
 
 
-# OK
+# OK !!
 def get_tile_value_unchecked(world, tile_chunk, tile_x, tile_y):
-    assert isinstance(tile_chunk, TileChunk)  # type 'TileChunk'
+    # TODO: do we need asserts here?
     assert 0 <= tile_x < world.chunk_dim
     assert 0 <= tile_y < world.chunk_dim
 
-    tile_value = tile_chunk.tiles[tile_y][tile_x]
+    tile_chunk_value = tile_chunk.tiles[tile_y][tile_x]
 
-    return tile_value
-
-
-# OK # TODO: rename to 'get_actual_tile_value(..)'
-def get_tile_value(world, tile_chunk, test_tile_x, test_tile_y):
-    tile_value = 0  # type 'int'
-
-    if isinstance(tile_chunk, TileChunk):  # type 'TileChunk'
-        tile_value = get_tile_value_unchecked(world, tile_chunk, test_tile_x, test_tile_y)
-
-    return tile_value
+    return tile_chunk_value
 
 
+# OK !!
+def get_actual_tile_value(world, tile_chunk, test_tile_x, test_tile_y):
+    tile_chunk_value = 0  # type 'int'
+
+    if tile_chunk:  # isinstance(tile_chunk, TileChunk):
+        tile_chunk_value = get_tile_value_unchecked(world, tile_chunk, test_tile_x, test_tile_y)
+
+    return tile_chunk_value
+
+
+# OK !!
 def re_coord(world, tile, rel):
     offset = floor_float(rel / world.tile_side_in_metres)
     tile += offset
@@ -126,6 +127,7 @@ def re_coord(world, tile, rel):
     return tile, rel
 
 
+# OK !!
 def re_canonical_position(world, old_pos):
     result = deepcopy(old_pos)
 
@@ -135,7 +137,7 @@ def re_canonical_position(world, old_pos):
     return result
 
 
-# OK
+# OK !!
 def get_chunk_position_for(world, abs_tile_x, abs_tile_y):
     result = TileChunkPosition()
 
@@ -147,18 +149,19 @@ def get_chunk_position_for(world, abs_tile_x, abs_tile_y):
     return result
 
 
-# OK # TODO: rename to 'get_tile_value(..)'
-def get_tile_value_outter(world, abs_tile_x, abs_tile_y):
+# OK !!
+def get_tile_value(world, abs_tile_x, abs_tile_y):
     chunk_pos = get_chunk_position_for(world, abs_tile_x, abs_tile_y)
-    tile_map = get_tile_chunk(world, chunk_pos.tile_chunk_x, chunk_pos.tile_chunk_y)
-    tile_chunk_value = get_tile_value(world, tile_map, chunk_pos.rel_tile_x, chunk_pos.rel_tile_y)
+    tile_chunk = get_tile_chunk(world, chunk_pos.tile_chunk_x, chunk_pos.tile_chunk_y)
+    tile_chunk_value = get_actual_tile_value(world, tile_chunk, chunk_pos.rel_tile_x, chunk_pos.rel_tile_y)
 
     return tile_chunk_value
 
 
+# OK !!
 def is_world_point_empty(world, pos):
-    tile_value = get_tile_value_outter(world, pos.abs_tile_x, pos.abs_tile_y)
-    is_empty = tile_value is 0
+    tile_chunk_value = get_tile_value(world, pos.abs_tile_x, pos.abs_tile_y)
+    is_empty = tile_chunk_value is 0
 
     return is_empty
 
@@ -263,9 +266,8 @@ def main():
                 temp_tiles[y][x] = 1
 
     world = World()
-    # NOTE: this is 256x256 tile chunks
     world.chunk_shift = 8
-    world.chunk_mask = 0xFF  # 255
+    world.chunk_mask = (1 << world.chunk_shift) - 1  # 255
     world.chunk_dim = 256
 
     world.tile_chunk_count_x = 1  # 256  # len(tile_chunks[0])
@@ -278,15 +280,15 @@ def main():
     lower_left_y = SURFACE.get_height()
 
     tile_chunk = TileChunk(temp_tiles)
-    world.tile_chunks = tile_chunk
+    world.tile_chunks.append(tile_chunk)  # = tile_chunk
 
     player = Entity(0.75*world.tile_side_in_metres, world.tile_side_in_metres)
     # player.pos.tile_chunk_x = 0
     # player.pos.tile_chunk_y = 0
-    player.pos.abs_tile_x = 1
-    player.pos.abs_tile_y = 1
-    player.pos.x = 2
-    player.pos.y = 2
+    player.pos.abs_tile_x = 3
+    player.pos.abs_tile_y = 3
+    player.pos.x = 0.2
+    player.pos.y = 0.2
 
     familiar = Entity(world.tile_side_in_metres * 0.5, world.tile_side_in_metres * 0.5)
 
@@ -311,6 +313,7 @@ def main():
 
     while True:
         delta = CLOCK.get_time() / 1000
+        print('delta:', delta)
 
         for event in pygame.event.get():
             if event.type == QUIT:
@@ -332,14 +335,14 @@ def main():
         if keys[K_RIGHT] is 1:
             player_x_delta = 1
 
-        player_x_delta *= 10
-        player_y_delta *= 10
+        player_x_delta *= 2  # 10
+        player_y_delta *= 2  # 10
 
         # TODO: diagonal will be faster - fixed with vectors
         new_player_pos = deepcopy(player.pos)
         new_player_pos.x += (delta * player_x_delta)
         new_player_pos.y += (delta * player_y_delta)
-        new_player_pos = re_canonical_position(world, new_player_pos)
+        # new_player_pos = re_canonical_position(world, new_player_pos)
 
         # player_left = player.pos
         # player_left.x -= 0.5 * player.width
@@ -366,7 +369,7 @@ def main():
 
         for y in range(world.chunk_dim):
             for x in range(world.chunk_dim):
-                tile = get_tile_value_outter(world, x, y)
+                tile = get_tile_value(world, x, y)
                 grey = (125, 125, 125)
                 if tile is 1:
                     grey = (255, 255, 255)
@@ -505,6 +508,7 @@ def bit_testing():
 
     tiles_as_int = bin(shift(temp_tiles))[2:]
     print('tiles:', tiles_as_int)
+    print('size:', int(tiles_as_int).bit_length())
     w = 256
     x = 6
     y = 4
@@ -513,6 +517,6 @@ def bit_testing():
 
 
 if __name__ == '__main__':
-    # main()
+    main()
 
-    bit_testing()
+    # bit_testing()
