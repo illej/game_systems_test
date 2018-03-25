@@ -78,8 +78,8 @@ def draw_debug_text(world, contents, entity, x_offset=0, y_offset=0):
     font = pygame.font.Font('freesansbold.ttf', 10)
     text_surface = font.render(contents, True, WHITE, BLACK)
     text_rect = text_surface.get_rect()
-    text_rect.left = x_offset + (world.metres_to_pixels * world.lower_left_x) + (world.tile_side_in_pixels * entity.pos.tile_x) + (world.metres_to_pixels * entity.pos.x) + (world.metres_to_pixels * entity.width)
-    text_rect.top = y_offset + (world.metres_to_pixels * world.lower_left_y) + (world.tile_side_in_pixels * entity.pos.tile_y) + (world.metres_to_pixels * entity.pos.y)
+    text_rect.left = entity.pos.tile_x * world.tile_side_in_pixels  # x_offset + (world.metres_to_pixels * world.lower_left_x) + (world.tile_side_in_pixels * entity.pos.tile_x) + (world.metres_to_pixels * entity.pos.x) + (world.metres_to_pixels * entity.width)
+    text_rect.top = entity.pos.tile_y * world.tile_side_in_pixels  # y_offset + (world.metres_to_pixels * world.lower_left_y) + (world.tile_side_in_pixels * entity.pos.tile_y) + (world.metres_to_pixels * entity.pos.y)
     SURFACE.blit(text_surface, text_rect)
 
 
@@ -103,8 +103,8 @@ def is_world_point_empty(world, pos):  # test_raw_position):
 
 
 def get_tile_value_unchecked(world, tile_map, tile_x, tile_y):
-    assert tile_map
-    assert 0 <= tile_x < world.count_x and 0 <= tile_y < world.count_y
+    # assert tile_map
+    # assert 0 <= tile_x < world.count_x and 0 <= tile_y < world.count_y
 
     tile = tile_map.tiles[tile_y][tile_x]
 
@@ -328,10 +328,10 @@ def main():
     player = Entity(0.75*world.tile_side_in_metres, world.tile_side_in_metres)
     player.pos.tile_map_x = 0
     player.pos.tile_map_y = 0
-    player.pos.tile_x = 1
-    player.pos.tile_y = 1
-    player.pos.x = 2
-    player.pos.y = 2
+    player.pos.tile_x = 14
+    player.pos.tile_y = 4
+    player.pos.x = 0.1
+    player.pos.y = 0.1
 
     familiar = Entity(world.tile_side_in_metres * 0.5, world.tile_side_in_metres * 0.5)
 
@@ -409,9 +409,21 @@ def main():
 
         draw_rectangle(SURFACE, 0, 0, SURFACE.get_width(), SURFACE.get_height(), BLACK)
 
-        for y in range(world.count_y):
-            for x in range(world.count_x):
-                tile = get_tile_value_unchecked(world, current_tile_map, x, y)
+        y_start = -10
+        y_end = 10
+        x_start = -20
+        x_end = 20
+
+        centre_x = SURFACE.get_width() / 2
+        centre_y = SURFACE.get_height() / 2
+
+        for y in range(y_start, y_end):  # world.count_y):
+            for x in range(x_start, x_end):  # world.count_x):
+                column = x + player.pos.tile_x
+                row = y + player.pos.tile_y
+
+                print('[x,y]: {}, {}, [p.t_x,_y]: {}, {}, [row, col]: {}, {}'.format(x, y, player.pos.tile_x, player.pos.tile_y, row, column))
+                tile = get_tile_value_unchecked(world, current_tile_map, column, row)  # x, y)
                 grey = (125, 125, 125)
                 if tile is 1:
                     grey = (255, 255, 255)
@@ -423,17 +435,16 @@ def main():
                     grey = (50, 50, 50)
                 if (x, y) in baddy_2.mov.path:
                     grey = (50, 50, 50)
-                min_x = world.lower_left_x + x*world.tile_side_in_pixels
-                min_y = world.lower_left_y - y*world.tile_side_in_pixels
+
+                min_x = centre_x - world.metres_to_pixels * player.pos.x + x*world.tile_side_in_pixels
+                min_y = centre_y + world.metres_to_pixels * player.pos.y - y*world.tile_side_in_pixels
                 max_x = world.tile_side_in_pixels
                 max_y = -world.tile_side_in_pixels
                 draw_rectangle(SURFACE, min_x, min_y, max_x, max_y, grey)
 
         # draw entities
-        player_left = world.lower_left_x + world.tile_side_in_pixels * player.pos.tile_x + \
-                      world.metres_to_pixels * player.pos.x - 0.5 * world.metres_to_pixels * player.width
-        player_top = world.lower_left_y - world.tile_side_in_pixels * player.pos.tile_y - \
-                     world.metres_to_pixels * player.pos.y - world.metres_to_pixels * player.height
+        player_left = centre_x - 0.5 * world.metres_to_pixels * player.width
+        player_top = centre_y - world.metres_to_pixels * player.height
         draw_rectangle(SURFACE,
                        player_left, player_top,
                        world.metres_to_pixels*player.width,
