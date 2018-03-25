@@ -141,10 +141,15 @@ def re_canonical_position(world, old_pos):
 def get_chunk_position_for(world, abs_tile_x, abs_tile_y):
     result = TileChunkPosition()
 
-    result.tile_chunk_x = abs_tile_x >> world.chunk_shift
-    result.tile_chunk_y = abs_tile_y >> world.chunk_shift
-    result.rel_tile_x = abs_tile_x & world.chunk_mask
-    result.rel_tile_y = abs_tile_y & world.chunk_mask
+    # result.tile_chunk_x = abs_tile_x >> world.chunk_shift
+    # result.tile_chunk_y = abs_tile_y >> world.chunk_shift
+    # result.rel_tile_x = abs_tile_x & world.chunk_mask
+    # result.rel_tile_y = abs_tile_y & world.chunk_mask
+
+    result.tile_chunk_x = floor_float(abs_tile_x / world.chunk_dim)
+    result.tile_chunk_y = floor_float(abs_tile_y / world.chunk_dim)
+    result.rel_tile_x = abs_tile_x % world.chunk_dim
+    result.rel_tile_y = abs_tile_y % world.chunk_dim
 
     return result
 
@@ -233,9 +238,9 @@ def main():
     # TODO: typedef'd int types - ep 34 @ 50 mins
 
     temp_tiles = []
-    for y in range(256):
+    for y in range(50):
         row = []
-        for x in range(256):
+        for x in range(50):
             row.append(0)
         temp_tiles.append(row)
 
@@ -268,7 +273,7 @@ def main():
     world = World()
     world.chunk_shift = 8
     world.chunk_mask = (1 << world.chunk_shift) - 1  # 255
-    world.chunk_dim = 256
+    world.chunk_dim = 20
 
     world.tile_chunk_count_x = 1  # 256  # len(tile_chunks[0])
     world.tile_chunk_count_y = 1  # 256  # len(tile_chunks)
@@ -335,14 +340,14 @@ def main():
         if keys[K_RIGHT] is 1:
             player_x_delta = 1
 
-        player_x_delta *= 2  # 10
-        player_y_delta *= 2  # 10
+        player_x_delta *= 10
+        player_y_delta *= 10
 
         # TODO: diagonal will be faster - fixed with vectors
         new_player_pos = deepcopy(player.pos)
         new_player_pos.x += (delta * player_x_delta)
         new_player_pos.y += (delta * player_y_delta)
-        # new_player_pos = re_canonical_position(world, new_player_pos)
+        new_player_pos = re_canonical_position(world, new_player_pos)
 
         # player_left = player.pos
         # player_left.x -= 0.5 * player.width
@@ -430,93 +435,20 @@ def main():
         CLOCK.tick(FPS)
 
 
-def shift(bit_list):
-    out = 0
+def re_do_things(tile):
+    dim = 100
+    map = floor_float(tile / dim)
+    rel_tile = tile % dim
 
-    for row in bit_list:
-        for bit in row:
-            out = (out << 1) | bit
-
-    return out
+    print('tile: {} => map: {}, rel_tile: {}'.format(tile, map, rel_tile))
 
 
-def bit_testing():
-    template = [
-        [1, 1, 1, 1, 1],
-        [1, 0, 0, 0, 1],
-        [1, 0, 0, 0, 1],
-        [1, 0, 0, 0, 1],
-        [1, 1, 1, 1, 1]
-    ]
-
-    res = shift(template)
-
-    print('result:', res)
-    print('hex:', hex(res))
-    print('bin:', bin(res))
-
-    temp_tiles = []
-    for y in range(256):
-        row = []
-        for x in range(256):
-            row.append(0)
-        temp_tiles.append(row)
-
-    tiles = [
-        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-        [1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1],
-        [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1],
-        [1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1],
-        [1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1],
-        [1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1],
-        [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1],
-        [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-    ]
-
-    for y in range(len(tiles)):  # 18
-        for x in range(len(tiles[0])):  # 34
-            if tiles[y][x] is 1:
-                temp_tiles[y][x] = 1
-
-    test_arr = [
-        [1, 1, 1, 1, 1],
-        [1, 0, 0, 0, 1],
-        [1, 0, 1, 0, 1],
-        [1, 0, 0, 0, 1],
-        [1, 1, 1, 1, 1]
-    ]
-
-    arr_as_int = bin(shift(test_arr))[2:]
-    print('array:', arr_as_int)
-    w = 5
-    h = 5
-    x = 1
-    y = 4
-    i = y * w + x
-    v = arr_as_int[i]
-    print('i: {}, value: {}'.format(i, v))
-
-    tiles_as_int = bin(shift(temp_tiles))[2:]
-    print('tiles:', tiles_as_int)
-    print('size:', int(tiles_as_int).bit_length())
-    w = 256
-    x = 6
-    y = 4
-    tile = tiles_as_int[y * w + x]
-    print('tile:', tile)
+def mod_test():
+    for i in range(0, 400, 15):
+        re_do_things(i)
 
 
 if __name__ == '__main__':
     main()
 
-    # bit_testing()
+    # mod_test()
