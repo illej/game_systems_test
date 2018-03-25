@@ -74,118 +74,135 @@ def draw_rectangle(buffer, x, y, width, height, colour):
     pygame.draw.rect(buffer, colour, (min_x, min_y, max_x, max_y))
 
 
-def draw_debug_text(world, contents, entity, x_offset=0, y_offset=0):
-    font = pygame.font.Font('freesansbold.ttf', 10)
-    text_surface = font.render(contents, True, WHITE, BLACK)
-    text_rect = text_surface.get_rect()
-    text_rect.left = entity.pos.tile_x * world.tile_side_in_pixels  # x_offset + (world.metres_to_pixels * world.lower_left_x) + (world.tile_side_in_pixels * entity.pos.tile_x) + (world.metres_to_pixels * entity.pos.x) + (world.metres_to_pixels * entity.width)
-    text_rect.top = entity.pos.tile_y * world.tile_side_in_pixels  # y_offset + (world.metres_to_pixels * world.lower_left_y) + (world.tile_side_in_pixels * entity.pos.tile_y) + (world.metres_to_pixels * entity.pos.y)
-    SURFACE.blit(text_surface, text_rect)
+# def draw_debug_text(world, contents, entity, x_offset=0, y_offset=0):
+#     font = pygame.font.Font('freesansbold.ttf', 10)
+#     text_surface = font.render(contents, True, WHITE, BLACK)
+#     text_rect = text_surface.get_rect()
+#     text_rect.left = x_offset + (world.metres_to_pixels * world.lower_left_x) + (world.tile_side_in_pixels * entity.pos.tile_x) + (world.metres_to_pixels * entity.pos.x) + (world.metres_to_pixels * entity.width)
+#     text_rect.top = y_offset + (world.metres_to_pixels * world.lower_left_y) + (world.tile_side_in_pixels * entity.pos.tile_y) + (world.metres_to_pixels * entity.pos.y)
+#     SURFACE.blit(text_surface, text_rect)
 
 
-def is_tile_map_point_empty(world, tile_map, test_tile_x, test_tile_y):
-    is_empty = False
+# OK !!
+def get_tile_chunk(world, tile_chunk_x, tile_chunk_y):
+    tile_chunk = 0
 
-    if tile_map:
-        if 0 <= test_tile_x < world.count_x and 0 <= test_tile_y < world.count_y:
-            tile = get_tile_value_unchecked(world, tile_map, test_tile_x, test_tile_y)  # [test_tile_y * tile_map.count_x + test_tile_x]
-            is_empty = tile is 0
+    if 0 <= tile_chunk_x < world.tile_chunk_count_x and \
+            0 <= tile_chunk_y < world.tile_chunk_count_y:
+        tile_chunk = world.tile_chunks[tile_chunk_y * world.tile_chunk_count_x + tile_chunk_x]  # .tiles[tile_chunk_y][tile_chunk_x]
 
-    return is_empty
-
-
-def is_world_point_empty(world, pos):  # test_raw_position):
-    # pos = get_canonical_position(world, test_raw_position)
-    tile_map = get_tile_map(world, pos.tile_map_x, pos.tile_map_y)
-    is_empty = is_tile_map_point_empty(world, tile_map, pos.tile_x, pos.tile_y)
-
-    return is_empty
+    return tile_chunk
 
 
-def get_tile_value_unchecked(world, tile_map, tile_x, tile_y):
-    # assert tile_map
-    # assert 0 <= tile_x < world.count_x and 0 <= tile_y < world.count_y
+# OK !!
+def get_tile_value_unchecked(world, tile_chunk, tile_x, tile_y):
+    # TODO: do we need asserts here?
+    assert 0 <= tile_x < world.chunk_dim
+    assert 0 <= tile_y < world.chunk_dim
 
-    tile = tile_map.tiles[tile_y][tile_x]
+    tile_chunk_value = tile_chunk.tiles[tile_y][tile_x]
 
-    return tile
-
-
-def get_tile_map(world, tile_map_x, tile_map_y):
-    tile_map = None
-
-    if 0 <= tile_map_x < world.tile_map_count_x and \
-            0 <= tile_map_y < world.tile_map_count_y:
-        tile_map = world.tile_maps[tile_map_y][tile_map_x]
-
-    return tile_map
+    return tile_chunk_value
 
 
-def canon_coord(world, tile_count, tile_map, tile, rel):
-    offset = floor_float(rel / world.tile_side_in_metres)  # world.tile_side_in_pixels  # truncate_float(x / world.tile_width)
+# OK !!
+def get_actual_tile_value(world, tile_chunk, test_tile_x, test_tile_y):
+    tile_chunk_value = 0  # type 'int'
+
+    if tile_chunk:  # isinstance(tile_chunk, TileChunk):
+        tile_chunk_value = get_tile_value_unchecked(world, tile_chunk, test_tile_x, test_tile_y)
+
+    return tile_chunk_value
+
+
+# OK !!
+def re_coord(world, tile, rel):
+    offset = floor_float(rel / world.tile_side_in_metres)
     tile += offset
-    rel -= offset * world.tile_side_in_metres  # world.tile_side_in_pixels
+    rel -= offset * world.tile_side_in_metres
 
     assert rel >= 0
-    assert rel <= world.tile_side_in_metres  # world.tile_side_in_pixels
+    assert rel <= world.tile_side_in_metres  # TODO: fix floating point math
 
-    if tile < 0:
-        tile = tile_count + tile
-        tile_map = tile_map - 1
-
-    if tile >= tile_count:
-        tile = tile - tile_count
-        tile_map = tile_map + 1
-
-    return tile_map, tile, rel
+    return tile, rel
 
 
+# OK !!
 def re_canonical_position(world, old_pos):
     result = deepcopy(old_pos)
 
-    result.tile_map_x, result.tile_x, result.x = canon_coord(world, world.count_x, result.tile_map_x, result.tile_x, result.x)
-    result.tile_map_y, result.tile_y, result.y = canon_coord(world, world.count_y, result.tile_map_y, result.tile_y, result.y)
+    result.abs_tile_x, result.x = re_coord(world, result.abs_tile_x, result.x)
+    result.abs_tile_y, result.y = re_coord(world, result.abs_tile_y, result.y)
 
     return result
+
+
+# OK !!
+def get_chunk_position_for(world, abs_tile_x, abs_tile_y):
+    result = TileChunkPosition()
+
+    result.tile_chunk_x = abs_tile_x >> world.chunk_shift
+    result.tile_chunk_y = abs_tile_y >> world.chunk_shift
+    result.rel_tile_x = abs_tile_x & world.chunk_mask
+    result.rel_tile_y = abs_tile_y & world.chunk_mask
+
+    return result
+
+
+# OK !!
+def get_tile_value(world, abs_tile_x, abs_tile_y):
+    chunk_pos = get_chunk_position_for(world, abs_tile_x, abs_tile_y)
+    tile_chunk = get_tile_chunk(world, chunk_pos.tile_chunk_x, chunk_pos.tile_chunk_y)
+    tile_chunk_value = get_actual_tile_value(world, tile_chunk, chunk_pos.rel_tile_x, chunk_pos.rel_tile_y)
+
+    return tile_chunk_value
+
+
+# OK !!
+def is_world_point_empty(world, pos):
+    tile_chunk_value = get_tile_value(world, pos.abs_tile_x, pos.abs_tile_y)
+    is_empty = tile_chunk_value is 0
+
+    return is_empty
 
 
 # old
-def get_canonical_position(world, raw_position):
-    result = WorldPosition()
-
-    result.tile_map_x = raw_position.tile_map_x
-    result.tile_map_y = raw_position.tile_map_y
-
-    x = raw_position.x - world.upper_left_x
-    y = raw_position.y - world.upper_left_y
-    result.tile_x = floor_float(x / world.tile_side_in_pixels)  # truncate_float(x / world.tile_width)
-    result.tile_y = floor_float(y / world.tile_side_in_pixels)  # truncate_float(y / world.tile_height)
-
-    result.x = x - result.tile_x * world.tile_side_in_pixels
-    result.y = y - result.tile_y * world.tile_side_in_pixels
-
-    assert result.x >= 0
-    assert result.y >= 0
-    assert result.x < world.tile_side_in_pixels
-    assert result.y < world.tile_side_in_pixels
-
-    if result.tile_x < 0:
-        result.tile_x = world.count_x + result.tile_x
-        result.tile_map_x = result.tile_map_x - 1
-
-    if result.tile_y < 0:
-        result.tile_y = world.count_y + result.tile_y
-        result.tile_map_y = result.tile_map_y - 1
-
-    if result.tile_x >= world.count_x:
-        result.tile_x = result.tile_x - world.count_x
-        result.tile_map_x = result.tile_map_x + 1
-
-    if result.tile_y >= world.count_y:
-        result.tile_y = result.tile_y - world.count_y
-        result.tile_map_y = result.tile_map_y + 1
-
-    return result
+# def get_canonical_position(world, raw_position):
+#     result = WorldPosition()
+#
+#     result.tile_map_x = raw_position.tile_map_x
+#     result.tile_map_y = raw_position.tile_map_y
+#
+#     x = raw_position.x - world.upper_left_x
+#     y = raw_position.y - world.upper_left_y
+#     result.abs_tile_x = floor_float(x / world.tile_side_in_pixels)  # truncate_float(x / world.tile_width)
+#     result.abs_tile_y = floor_float(y / world.tile_side_in_pixels)  # truncate_float(y / world.tile_height)
+#
+#     result.x = x - result.abs_tile_x * world.tile_side_in_pixels
+#     result.y = y - result.abs_tile_y * world.tile_side_in_pixels
+#
+#     assert result.x >= 0
+#     assert result.y >= 0
+#     assert result.x < world.tile_side_in_pixels
+#     assert result.y < world.tile_side_in_pixels
+#
+#     if result.abs_tile_x < 0:
+#         result.abs_tile_x = world.count_x + result.abs_tile_x
+#         result.tile_map_x = result.tile_map_x - 1
+#
+#     if result.abs_tile_y < 0:
+#         result.abs_tile_y = world.count_y + result.abs_tile_y
+#         result.tile_map_y = result.tile_map_y - 1
+#
+#     if result.abs_tile_x >= world.count_x:
+#         result.abs_tile_x = result.abs_tile_x - world.count_x
+#         result.tile_map_x = result.tile_map_x + 1
+#
+#     if result.abs_tile_y >= world.count_y:
+#         result.abs_tile_y = result.abs_tile_y - world.count_y
+#         result.tile_map_y = result.tile_map_y + 1
+#
+#     return result
 
 
 def update_familiar(familiar, player):
@@ -203,34 +220,6 @@ def update_familiar(familiar, player):
             familiar.y -= 2
 
 
-def update_baddy(level, baddy, player):
-    delta_pos_x = abs(player.x - baddy.x)
-    delta_pos_y = abs(player.y - baddy.y)
-
-    if delta_pos_x < 70 or delta_pos_y < 70:
-        baddy.state = 'ATTACKING'
-        new_pos_x = baddy.x
-        new_pos_y = baddy.y
-
-        if player.x > baddy.x:
-            new_pos_x += 1
-        if player.x < baddy.x:
-            new_pos_x -= 1
-        if player.y > baddy.y:
-            new_pos_y += 1
-        if player.y < baddy.y:
-            new_pos_y -= 1
-
-        if is_tile_map_point_empty(level, new_pos_x, new_pos_y) and \
-                is_tile_map_point_empty(level, new_pos_x + baddy.width, new_pos_y) and \
-                is_tile_map_point_empty(level, new_pos_x, new_pos_y + baddy.height) and \
-                is_tile_map_point_empty(level, new_pos_x + baddy.width, new_pos_y + baddy.height):
-            baddy.x = new_pos_x
-            baddy.y = new_pos_y
-    else:
-        baddy.state = 'no target'
-
-
 def main():
     if pygame.joystick.get_count() > 0:
         gamepads = [x360.Controller(i) for i in pygame.joystick.get_count()]
@@ -239,123 +228,92 @@ def main():
 
     # ----- SETUP ----- #
 
-    # TODO: Pretty sure we're at episode 33 - virtualised tile maps
+    # TODO: Pretty sure we're at episode 33 - virtualised tile maps @ 58mins - debugging
+    # TODO: shifting tile code into its own file - ep 34 @ 30 - 40 mins
+    # TODO: typedef'd int types - ep 34 @ 50 mins
 
-    tiles_0_0 = [
-        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-        [1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1],
-        [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0],
-        [1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1]
-    ]
-    tiles_0_1 = [
-        [1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1],
-        [1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1],
-        [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0],
-        [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-    ]
-    tiles_1_0 = [
-        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-        [1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1],
-        [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1],
-        [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1]
-    ]
-    tiles_1_1 = [
-        [1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1],
-        [1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1],
-        [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+    temp_tiles = []
+    for y in range(256):
+        row = []
+        for x in range(256):
+            row.append(0)
+        temp_tiles.append(row)
+
+    tiles = [
+        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+        [1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1,     1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1],
+        [1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1,     1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1],
+        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1,     1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1],
+        [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0,     0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1],
+        [1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1,     1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+        [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,     1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1],
+        [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,     1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+        [1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1,     1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1],
+        [1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1,     1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1],
+        [1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1,     1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1],
+        [1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1,     1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1],
+        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1,     1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1],
+        [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0,     0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1],
+        [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,     1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1],
+        [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1,     1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,     1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
     ]
 
-    tiles_mega = [
-        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-        [1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1],
-        [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1],
-        [1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1],
-        [1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1],
-        [1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1],
-        [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1],
-        [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-    ]
-
-    tile_maps = [
-        [TileMap(tiles_mega)]
-        # [TileMap(tiles_0_0), TileMap(tiles_1_0)],
-        # [TileMap(tiles_0_1), TileMap(tiles_1_1)]
-    ]
+    for y in range(len(tiles)):  # 18
+        for x in range(len(tiles[0])):  # 34
+            if tiles[y][x] is 1:
+                temp_tiles[y][x] = 1
 
     world = World()
-    world.count_x = 17 * 2
-    world.count_y = 9 * 2
-    world.tile_map_count_x = len(tile_maps[0])
-    world.tile_map_count_y = len(tile_maps)
+    world.chunk_shift = 8
+    world.chunk_mask = (1 << world.chunk_shift) - 1  # 255
+    world.chunk_dim = 256
+
+    world.tile_chunk_count_x = 1  # 256  # len(tile_chunks[0])
+    world.tile_chunk_count_y = 1  # 256  # len(tile_chunks)
     world.tile_side_in_metres = 1
     world.tile_side_in_pixels = 60
     world.metres_to_pixels = world.tile_side_in_pixels / world.tile_side_in_metres
-    world.lower_left_x = -(world.tile_side_in_pixels / 2)
-    world.lower_left_y = SURFACE.get_height()
-    world.tile_maps = tile_maps
+
+    lower_left_x = -(world.tile_side_in_pixels / 2)
+    lower_left_y = SURFACE.get_height()
+
+    tile_chunk = TileChunk(temp_tiles)
+    world.tile_chunks.append(tile_chunk)  # = tile_chunk
 
     player = Entity(0.75*world.tile_side_in_metres, world.tile_side_in_metres)
-    player.pos.tile_map_x = 0
-    player.pos.tile_map_y = 0
-    player.pos.tile_x = 14
-    player.pos.tile_y = 4
-    player.pos.x = 0.1
-    player.pos.y = 0.1
+    # player.pos.tile_chunk_x = 0
+    # player.pos.tile_chunk_y = 0
+    player.pos.abs_tile_x = 3
+    player.pos.abs_tile_y = 3
+    player.pos.x = 0.2
+    player.pos.y = 0.2
 
     familiar = Entity(world.tile_side_in_metres * 0.5, world.tile_side_in_metres * 0.5)
 
     baddy = Entity(world.tile_side_in_metres * 0.5, world.tile_side_in_metres * 0.5)
-    baddy.pos.tile_map_x = 0
-    baddy.pos.tile_map_y = 0
+    baddy.pos.tile_chunk_x = 0
+    baddy.pos.tile_chunk_y = 0
     baddy.pos.tile_x = 5
     baddy.pos.tile_y = 5
     baddy.pos.x = 1
     baddy.pos.y = 1
 
     baddy_2 = Entity(world.tile_side_in_metres * 0.5, world.tile_side_in_metres * 0.5)
-    baddy_2.pos.tile_map_x = 0
-    baddy_2.pos.tile_map_y = 0
+    baddy_2.pos.tile_chunk_x = 0
+    baddy_2.pos.tile_chunk_y = 0
     baddy_2.pos.tile_x = 10
     baddy_2.pos.tile_y = 1
     baddy_2.pos.x = 1
     baddy_2.pos.y = 1
 
-    current_tile_map = get_tile_map(world, player.pos.tile_map_x, player.pos.tile_map_y)
-    assert current_tile_map
+    # current_tile_chunk = get_tile_chunk(world, player.pos.tile_chunk_x, player.pos.tile_chunk_y)
+    # assert current_tile_chunk
 
     while True:
         delta = CLOCK.get_time() / 1000
+        print('delta:', delta)
 
         for event in pygame.event.get():
             if event.type == QUIT:
@@ -377,14 +335,14 @@ def main():
         if keys[K_RIGHT] is 1:
             player_x_delta = 1
 
-        player_x_delta *= 10
-        player_y_delta *= 10
+        player_x_delta *= 2  # 10
+        player_y_delta *= 2  # 10
 
         # TODO: diagonal will be faster - fixed with vectors
         new_player_pos = deepcopy(player.pos)
         new_player_pos.x += (delta * player_x_delta)
         new_player_pos.y += (delta * player_y_delta)
-        new_player_pos = re_canonical_position(world, new_player_pos)
+        # new_player_pos = re_canonical_position(world, new_player_pos)
 
         # player_left = player.pos
         # player_left.x -= 0.5 * player.width
@@ -399,52 +357,41 @@ def main():
 
         # ----- UPDATE ----- #
 
-        current_tile_map = get_tile_map(world, player.pos.tile_map_x, player.pos.tile_map_y)
-        assert current_tile_map
+        # current_tile_chunk = get_tile_chunk(world, player.pos.tile_chunk_x, player.pos.tile_chunk_y)
+        # assert current_tile_chunk
 
-        baddy.mov.update(re_canonical_position, world, current_tile_map, baddy, player, delta)
-        baddy_2.mov.update(re_canonical_position, world, current_tile_map, baddy_2, player, delta)
+        # baddy.mov.update(re_canonical_position, world, current_tile_chunk, baddy, player, delta)
+        # baddy_2.mov.update(re_canonical_position, world, current_tile_chunk, baddy_2, player, delta)
 
         # ----- RENDER ----- #
 
         draw_rectangle(SURFACE, 0, 0, SURFACE.get_width(), SURFACE.get_height(), BLACK)
 
-        y_start = -10
-        y_end = 10
-        x_start = -20
-        x_end = 20
-
-        centre_x = SURFACE.get_width() / 2
-        centre_y = SURFACE.get_height() / 2
-
-        for y in range(y_start, y_end):  # world.count_y):
-            for x in range(x_start, x_end):  # world.count_x):
-                column = x + player.pos.tile_x
-                row = y + player.pos.tile_y
-
-                print('[x,y]: {}, {}, [p.t_x,_y]: {}, {}, [row, col]: {}, {}'.format(x, y, player.pos.tile_x, player.pos.tile_y, row, column))
-                tile = get_tile_value_unchecked(world, current_tile_map, column, row)  # x, y)
+        for y in range(world.chunk_dim):
+            for x in range(world.chunk_dim):
+                tile = get_tile_value(world, x, y)
                 grey = (125, 125, 125)
                 if tile is 1:
                     grey = (255, 255, 255)
-                if x == player.pos.tile_x and y == player.pos.tile_y or \
-                        x == baddy.pos.tile_x and y == baddy.pos.tile_y or \
-                        x == baddy_2.pos.tile_x and y == baddy_2.pos.tile_y:
+                if x == player.pos.abs_tile_x and y == player.pos.abs_tile_y or \
+                        x == baddy.pos.abs_tile_x and y == baddy.pos.abs_tile_y or \
+                        x == baddy_2.pos.abs_tile_x and y == baddy_2.pos.abs_tile_y:
                     grey = (0, 0, 0)
                 if (x, y) in baddy.mov.path:
                     grey = (50, 50, 50)
                 if (x, y) in baddy_2.mov.path:
                     grey = (50, 50, 50)
-
-                min_x = centre_x - world.metres_to_pixels * player.pos.x + x*world.tile_side_in_pixels
-                min_y = centre_y + world.metres_to_pixels * player.pos.y - y*world.tile_side_in_pixels
+                min_x = lower_left_x + x*world.tile_side_in_pixels
+                min_y = lower_left_y - y*world.tile_side_in_pixels
                 max_x = world.tile_side_in_pixels
                 max_y = -world.tile_side_in_pixels
                 draw_rectangle(SURFACE, min_x, min_y, max_x, max_y, grey)
 
         # draw entities
-        player_left = centre_x - 0.5 * world.metres_to_pixels * player.width
-        player_top = centre_y - world.metres_to_pixels * player.height
+        player_left = lower_left_x + world.tile_side_in_pixels * player.pos.abs_tile_x + \
+                      world.metres_to_pixels * player.pos.x - 0.5 * world.metres_to_pixels * player.width
+        player_top = lower_left_y - world.tile_side_in_pixels * player.pos.abs_tile_y - \
+                     world.metres_to_pixels * player.pos.y - world.metres_to_pixels * player.height
         draw_rectangle(SURFACE,
                        player_left, player_top,
                        world.metres_to_pixels*player.width,
@@ -452,9 +399,9 @@ def main():
                        BLUE)
 
         # draw_rectangle(SURFACE, familiar.x, familiar.y, familiar.width, familiar.height, GREEN)
-        baddy_1_left = world.lower_left_x + world.tile_side_in_pixels * baddy.pos.tile_x + \
+        baddy_1_left = lower_left_x + world.tile_side_in_pixels * baddy.pos.abs_tile_x + \
                        world.metres_to_pixels * baddy.pos.x - 0.5 * world.metres_to_pixels * baddy.width
-        baddy_1_top = world.lower_left_y - world.tile_side_in_pixels * baddy.pos.tile_y - \
+        baddy_1_top = lower_left_y - world.tile_side_in_pixels * baddy.pos.abs_tile_y - \
                       world.metres_to_pixels * baddy.pos.y - world.metres_to_pixels * baddy.height
         draw_rectangle(SURFACE,
                        baddy_1_left, baddy_1_top,
@@ -462,9 +409,9 @@ def main():
                        world.metres_to_pixels*baddy.height,
                        RED)
 
-        baddy_2_left = world.lower_left_x + world.tile_side_in_pixels * baddy_2.pos.tile_x + \
+        baddy_2_left = lower_left_x + world.tile_side_in_pixels * baddy_2.pos.abs_tile_x + \
                        world.metres_to_pixels * baddy_2.pos.x - 0.5 * world.metres_to_pixels * baddy_2.width
-        baddy_2_top = world.lower_left_y - world.tile_side_in_pixels * baddy_2.pos.tile_y - \
+        baddy_2_top = lower_left_y - world.tile_side_in_pixels * baddy_2.pos.abs_tile_y - \
                       world.metres_to_pixels * baddy_2.pos.y - world.metres_to_pixels * baddy_2.height
         draw_rectangle(SURFACE,
                        baddy_2_left, baddy_2_top,
@@ -473,7 +420,7 @@ def main():
                        RED)
 
         # # player debug info
-        draw_debug_text(world, 'player: {}, {}'.format(player.pos.tile_x, player.pos.tile_y), player)
+        # draw_debug_text(world, 'player: {}, {}'.format(player.pos.abs_tile_x, player.pos.abs_tile_y), player)
         # draw_debug_text(world, 'x: {}'.format(player.pos.x), player, y_offset=10)
         # draw_debug_text(world, 'y: {}'.format(player.pos.y), player, y_offset=20)
         # draw_debug_text(world, 'pet: {}, {}'.format(familiar.x, familiar.y), familiar)
@@ -483,5 +430,93 @@ def main():
         CLOCK.tick(FPS)
 
 
+def shift(bit_list):
+    out = 0
+
+    for row in bit_list:
+        for bit in row:
+            out = (out << 1) | bit
+
+    return out
+
+
+def bit_testing():
+    template = [
+        [1, 1, 1, 1, 1],
+        [1, 0, 0, 0, 1],
+        [1, 0, 0, 0, 1],
+        [1, 0, 0, 0, 1],
+        [1, 1, 1, 1, 1]
+    ]
+
+    res = shift(template)
+
+    print('result:', res)
+    print('hex:', hex(res))
+    print('bin:', bin(res))
+
+    temp_tiles = []
+    for y in range(256):
+        row = []
+        for x in range(256):
+            row.append(0)
+        temp_tiles.append(row)
+
+    tiles = [
+        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+        [1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1],
+        [1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1],
+        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1],
+        [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1],
+        [1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+        [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1],
+        [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+        [1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1],
+        [1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1],
+        [1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1],
+        [1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1],
+        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1],
+        [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1],
+        [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1],
+        [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+    ]
+
+    for y in range(len(tiles)):  # 18
+        for x in range(len(tiles[0])):  # 34
+            if tiles[y][x] is 1:
+                temp_tiles[y][x] = 1
+
+    test_arr = [
+        [1, 1, 1, 1, 1],
+        [1, 0, 0, 0, 1],
+        [1, 0, 1, 0, 1],
+        [1, 0, 0, 0, 1],
+        [1, 1, 1, 1, 1]
+    ]
+
+    arr_as_int = bin(shift(test_arr))[2:]
+    print('array:', arr_as_int)
+    w = 5
+    h = 5
+    x = 1
+    y = 4
+    i = y * w + x
+    v = arr_as_int[i]
+    print('i: {}, value: {}'.format(i, v))
+
+    tiles_as_int = bin(shift(temp_tiles))[2:]
+    print('tiles:', tiles_as_int)
+    print('size:', int(tiles_as_int).bit_length())
+    w = 256
+    x = 6
+    y = 4
+    tile = tiles_as_int[y * w + x]
+    print('tile:', tile)
+
+
 if __name__ == '__main__':
     main()
+
+    # bit_testing()
