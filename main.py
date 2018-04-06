@@ -141,15 +141,15 @@ def re_canonical_position(world, old_pos):
 def get_chunk_position_for(world, abs_tile_x, abs_tile_y):
     result = TileChunkPosition()
 
-    # result.tile_chunk_x = abs_tile_x >> world.chunk_shift
-    # result.tile_chunk_y = abs_tile_y >> world.chunk_shift
-    # result.rel_tile_x = abs_tile_x & world.chunk_mask
-    # result.rel_tile_y = abs_tile_y & world.chunk_mask
+    result.tile_chunk_x = abs_tile_x >> world.chunk_shift
+    result.tile_chunk_y = abs_tile_y >> world.chunk_shift
+    result.rel_tile_x = abs_tile_x & world.chunk_mask
+    result.rel_tile_y = abs_tile_y & world.chunk_mask
 
-    result.tile_chunk_x = floor_float(abs_tile_x / world.chunk_dim)
-    result.tile_chunk_y = floor_float(abs_tile_y / world.chunk_dim)
-    result.rel_tile_x = abs_tile_x % world.chunk_dim
-    result.rel_tile_y = abs_tile_y % world.chunk_dim
+    # result.tile_chunk_x = floor_float(abs_tile_x / world.chunk_dim)
+    # result.tile_chunk_y = floor_float(abs_tile_y / world.chunk_dim)
+    # result.rel_tile_x = abs_tile_x % world.chunk_dim
+    # result.rel_tile_y = abs_tile_y % world.chunk_dim
 
     return result
 
@@ -238,9 +238,9 @@ def main():
     # TODO: typedef'd int types - ep 34 @ 50 mins
 
     temp_tiles = []
-    for y in range(50):
+    for y in range(256):
         row = []
-        for x in range(50):
+        for x in range(256):
             row.append(0)
         temp_tiles.append(row)
 
@@ -273,7 +273,7 @@ def main():
     world = World()
     world.chunk_shift = 8
     world.chunk_mask = (1 << world.chunk_shift) - 1  # 255
-    world.chunk_dim = 20
+    world.chunk_dim = 256
 
     world.tile_chunk_count_x = 1  # 256  # len(tile_chunks[0])
     world.tile_chunk_count_y = 1  # 256  # len(tile_chunks)
@@ -298,16 +298,16 @@ def main():
     familiar = Entity(world.tile_side_in_metres * 0.5, world.tile_side_in_metres * 0.5)
 
     baddy = Entity(world.tile_side_in_metres * 0.5, world.tile_side_in_metres * 0.5)
-    baddy.pos.tile_chunk_x = 0
-    baddy.pos.tile_chunk_y = 0
+    # baddy.pos.tile_chunk_x = 0
+    # baddy.pos.tile_chunk_y = 0
     baddy.pos.tile_x = 5
     baddy.pos.tile_y = 5
     baddy.pos.x = 1
     baddy.pos.y = 1
 
     baddy_2 = Entity(world.tile_side_in_metres * 0.5, world.tile_side_in_metres * 0.5)
-    baddy_2.pos.tile_chunk_x = 0
-    baddy_2.pos.tile_chunk_y = 0
+    # baddy_2.pos.tile_chunk_x = 0
+    # baddy_2.pos.tile_chunk_y = 0
     baddy_2.pos.tile_x = 10
     baddy_2.pos.tile_y = 1
     baddy_2.pos.x = 1
@@ -372,9 +372,20 @@ def main():
 
         draw_rectangle(SURFACE, 0, 0, SURFACE.get_width(), SURFACE.get_height(), BLACK)
 
-        for y in range(world.chunk_dim):
-            for x in range(world.chunk_dim):
-                tile = get_tile_value(world, x, y)
+        y_start = -10
+        y_end = 10
+        x_start = -20
+        x_end = 20
+
+        centre_x = SURFACE.get_width() / 2
+        centre_y = SURFACE.get_height() / 2
+
+        for y in range(y_start, y_end):
+            for x in range(x_start, x_end):
+                column = x + player.pos.abs_tile_x
+                row = y + player.pos.abs_tile_y
+
+                tile = get_tile_value(world, column, row)
                 grey = (125, 125, 125)
                 if tile is 1:
                     grey = (255, 255, 255)
@@ -386,17 +397,16 @@ def main():
                     grey = (50, 50, 50)
                 if (x, y) in baddy_2.mov.path:
                     grey = (50, 50, 50)
-                min_x = lower_left_x + x*world.tile_side_in_pixels
-                min_y = lower_left_y - y*world.tile_side_in_pixels
+
+                min_x = centre_x - world.metres_to_pixels*player.pos.x + x*world.tile_side_in_pixels
+                min_y = centre_y + world.metres_to_pixels*player.pos.y - y*world.tile_side_in_pixels
                 max_x = world.tile_side_in_pixels
                 max_y = -world.tile_side_in_pixels
                 draw_rectangle(SURFACE, min_x, min_y, max_x, max_y, grey)
 
         # draw entities
-        player_left = lower_left_x + world.tile_side_in_pixels * player.pos.abs_tile_x + \
-                      world.metres_to_pixels * player.pos.x - 0.5 * world.metres_to_pixels * player.width
-        player_top = lower_left_y - world.tile_side_in_pixels * player.pos.abs_tile_y - \
-                     world.metres_to_pixels * player.pos.y - world.metres_to_pixels * player.height
+        player_left = centre_x - 0.5*world.metres_to_pixels * player.width
+        player_top = centre_y - world.metres_to_pixels * player.height
         draw_rectangle(SURFACE,
                        player_left, player_top,
                        world.metres_to_pixels*player.width,
@@ -404,10 +414,12 @@ def main():
                        BLUE)
 
         # draw_rectangle(SURFACE, familiar.x, familiar.y, familiar.width, familiar.height, GREEN)
-        baddy_1_left = lower_left_x + world.tile_side_in_pixels * baddy.pos.abs_tile_x + \
-                       world.metres_to_pixels * baddy.pos.x - 0.5 * world.metres_to_pixels * baddy.width
-        baddy_1_top = lower_left_y - world.tile_side_in_pixels * baddy.pos.abs_tile_y - \
-                      world.metres_to_pixels * baddy.pos.y - world.metres_to_pixels * baddy.height
+        # baddy_1_left = lower_left_x + world.tile_side_in_pixels * baddy.pos.abs_tile_x + \
+        #                world.metres_to_pixels * baddy.pos.x - 0.5 * world.metres_to_pixels * baddy.width
+        baddy_1_left = centre_x - world.metres_to_pixels*player.pos.x + baddy.pos.abs_tile_x*world.tile_side_in_pixels
+        # baddy_1_top = lower_left_y - world.tile_side_in_pixels * baddy.pos.abs_tile_y - \
+        #               world.metres_to_pixels * baddy.pos.y - world.metres_to_pixels * baddy.height
+        baddy_1_top = centre_y + world.metres_to_pixels*player.pos.y - baddy.pos.y*world.tile_side_in_pixels
         draw_rectangle(SURFACE,
                        baddy_1_left, baddy_1_top,
                        world.metres_to_pixels*baddy.width,
