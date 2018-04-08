@@ -25,3 +25,17 @@ class WorldPosition(object):
         self.rel_y = 0
 
 
+class PlayerBitmaps(object):
+    def __init__(self):
+        self.align_x = 0
+        self.align_y = 0
+        self.head = None
+        self.cape = None
+        self.pants = None
+
+
+class GameState(object):
+    def __init__(self):
+        self.player_bitmaps = list()
+        self.camera_pos = None
+        self.player_pos = None

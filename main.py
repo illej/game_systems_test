@@ -57,7 +57,10 @@ def get_controller(index):
     return result
 
 
-def draw_rectangle(buffer, x, y, width, height, colour):
+def draw_rectangle(buffer, x, y, width, height, colour, align_x=0, align_y=0):
+    x -= align_x
+    y -= align_y
+
     min_x = round_float_to_int(x)  # - (width / 2)  # this seems wrong lol
     min_y = round_float_to_int(y)  # - (height / 2)  # this seems wrong lol
     max_x = round_float_to_int(width)
@@ -289,6 +292,10 @@ def main():
     player.pos.rel_x = 0.5
     player.pos.rel_y = 0.5
 
+    player_bitmap = PlayerBitmaps()
+    player_bitmap.align_x = world.tile_side_in_pixels / 2
+    player_bitmap.align_y = world.tile_side_in_pixels / 2
+
     familiar = Entity(world.tile_side_in_metres * 0.5, world.tile_side_in_metres * 0.5)
 
     baddy = Entity(world.tile_side_in_metres * 0.5, world.tile_side_in_metres * 0.5)
@@ -340,8 +347,8 @@ def main():
 
         # ----- UPDATE ----- #
 
-        # baddy.mov.update(re_canonical_position, world, world.tile_map, baddy, player, delta)
-        # baddy_2.mov.update(re_canonical_position, world, world.tile_map, baddy_2, player, delta)
+        baddy.mov.update(re_canonical_position, world, world.tile_map, baddy, player, delta)
+        baddy_2.mov.update(re_canonical_position, world, world.tile_map, baddy_2, player, delta)
 
         # ----- RENDER ----- #
 
@@ -365,14 +372,14 @@ def main():
 
                 if tile is 1:
                     grey = (255, 255, 255)
-                if x == player.pos.tile_x and y == player.pos.tile_y or \
-                        x == baddy.pos.tile_x and y == baddy.pos.tile_y or \
-                        x == baddy_2.pos.tile_x and y == baddy_2.pos.tile_y:
+                if (column, row) in baddy.mov.path:
+                    grey = (50, 50, 50)
+                if (column, row) in baddy_2.mov.path:
+                    grey = (50, 50, 50)
+                if column == player.pos.tile_x and row == player.pos.tile_y or \
+                        column == baddy.pos.tile_x and row == baddy.pos.tile_y or \
+                        column == baddy_2.pos.tile_x and row == baddy_2.pos.tile_y:
                     grey = (0, 0, 0)
-                # if (x, y) in baddy.mov.path:
-                #     grey = (50, 50, 50)
-                # if (x, y) in baddy_2.mov.path:
-                #     grey = (50, 50, 50)
                 if tile is -1:
                     grey = (255, 0, 0)
 
@@ -383,31 +390,35 @@ def main():
                 draw_rectangle(SURFACE, min_x, min_y, max_x, max_y, grey)
 
         # draw entities
-        player_left = centre_x - 0.5*world.metres_to_pixels * player.width
-        player_top = centre_y - world.metres_to_pixels * player.height
+        player_ground_x = centre_x
+        player_ground_y = centre_y
+        player_left = player_ground_x - 0.5*world.metres_to_pixels*player.width
+        player_top = player_ground_y - world.metres_to_pixels*player.height
         draw_rectangle(SURFACE,
-                       player_left, player_top,
+                       player_ground_x, player_ground_y,
                        world.metres_to_pixels*player.width,
                        world.metres_to_pixels*player.height,
-                       BLUE)
+                       BLUE,
+                       align_x=world.metres_to_pixels*(player.width / 2),
+                       align_y=world.metres_to_pixels*(player.height / 2))
 
-        # baddy_1_left = centre_x - 0.5*world.metres_to_pixels*player.pos.rel_x + baddy.pos.tile_x*world.tile_side_in_pixels
-        # baddy_1_top = centre_y - world.metres_to_pixels*player.pos.rel_y + baddy.pos.tile_y*world.tile_side_in_pixels
-        # draw_rectangle(SURFACE,
-        #                baddy_1_left, baddy_1_top,
-        #                world.metres_to_pixels * baddy.width,
-        #                world.metres_to_pixels * baddy.height,
-        #                RED)
-        #
-        # baddy_2_left = 0.5*world.metres_to_pixels * baddy.width
-        # baddy_2_top = world.metres_to_pixels * baddy.height
-        # draw_rectangle(SURFACE,
-        #                baddy_2_left, baddy_2_top,
-        #                world.metres_to_pixels*baddy_2.width,
-        #                world.metres_to_pixels*baddy_2.height,
-        #                RED)
+        baddy_1_left = centre_x - 0.5*world.metres_to_pixels*player.pos.rel_x + baddy.pos.tile_x*world.tile_side_in_pixels
+        baddy_1_top = centre_y - world.metres_to_pixels*player.pos.rel_y + baddy.pos.tile_y*world.tile_side_in_pixels
+        draw_rectangle(SURFACE,
+                       baddy_1_left, baddy_1_top,
+                       world.metres_to_pixels * baddy.width,
+                       world.metres_to_pixels * baddy.height,
+                       RED)
 
-        # # player debug info
+        baddy_2_left = 0.5*world.metres_to_pixels * baddy.width
+        baddy_2_top = world.metres_to_pixels * baddy.height
+        draw_rectangle(SURFACE,
+                       baddy_2_left, baddy_2_top,
+                       world.metres_to_pixels*baddy_2.width,
+                       world.metres_to_pixels*baddy_2.height,
+                       RED)
+
+        # player debug info
 
         pygame.display.update()
         CLOCK.tick(FPS)
