@@ -138,10 +138,10 @@ class MovementComponent(object):
         return self.path
 
     def get_path(self, world, tile_map, start, goal):
-        grid = WeightedGrid(world.count_x, world.count_y)
+        grid = WeightedGrid(tile_map.tile_count_x, tile_map.tile_count_y)
 
-        for y in range(world.count_y):
-            for x in range(world.count_x):
+        for y in range(tile_map.tile_count_y):
+            for x in range(tile_map.tile_count_x):
                 if tile_map.tiles[y][x] == 1:
                     grid.walls.append((x, y))
 
@@ -162,8 +162,8 @@ class MovementComponent(object):
             y_delta *= 5
 
             new_pos = deepcopy(actor.pos)
-            new_pos.x += (delta_time * x_delta)
-            new_pos.y += (delta_time * y_delta)
+            new_pos.rel_x += (delta_time * x_delta)
+            new_pos.rel_y += (delta_time * y_delta)
             new_pos = func(world, new_pos)
 
             actor.pos = deepcopy(new_pos)
