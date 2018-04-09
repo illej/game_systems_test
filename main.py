@@ -49,6 +49,21 @@ def round_float_to_int(f):
 # TODO: cos(angle)
 # TODO: atan2(y, x)
 
+
+def subtract(world, a, b):
+    result = PositionDifference()
+
+    d_tile_x = a.tile_x - b.tile_x
+    d_tile_y = a.tile_y - b.tile_y
+    d_tile_z = a.tile_z - b.tile_z
+
+    result.d_x = world.tile_side_in_metres * d_tile_x + (a.rel_x - b.rel_x)
+    result.d_y = world.tile_side_in_metres * d_tile_y + (a.rel_y - b.rel_y)
+    result.d_z = world.tile_side_in_metres * d_tile_z + 0  # TODO: Not yet implemented
+
+    return result
+
+
 def get_controller(index):
     result = None
     pygame.joystick.init()
@@ -286,6 +301,10 @@ def main():
     upper_left_x = -(world.tile_side_in_metres / 2)
     upper_left_y = 0
 
+    camera_pos = WorldPosition()
+    camera_pos.tile_x = world.tile_map.tile_count_x / 2
+    camera_pos.tile_y = world.tile_map.tile_count_y / 2
+
     player = Entity(world.tile_side_in_metres * 0.5, world.tile_side_in_metres * 0.5)
     player.pos.tile_x = 3
     player.pos.tile_y = 3
@@ -295,8 +314,6 @@ def main():
     player_bitmap = PlayerBitmaps()
     player_bitmap.align_x = world.tile_side_in_pixels / 2
     player_bitmap.align_y = world.tile_side_in_pixels / 2
-
-    familiar = Entity(world.tile_side_in_metres * 0.5, world.tile_side_in_metres * 0.5)
 
     baddy = Entity(world.tile_side_in_metres * 0.5, world.tile_side_in_metres * 0.5)
     baddy.pos.tile_x = 5
@@ -392,8 +409,6 @@ def main():
         # draw entities
         player_ground_x = centre_x
         player_ground_y = centre_y
-        player_left = player_ground_x - 0.5*world.metres_to_pixels*player.width
-        player_top = player_ground_y - world.metres_to_pixels*player.height
         draw_rectangle(SURFACE,
                        player_ground_x, player_ground_y,
                        world.metres_to_pixels*player.width,
@@ -402,21 +417,27 @@ def main():
                        align_x=world.metres_to_pixels*(player.width / 2),
                        align_y=world.metres_to_pixels*(player.height / 2))
 
-        baddy_1_left = centre_x - 0.5*world.metres_to_pixels*player.pos.rel_x + baddy.pos.tile_x*world.tile_side_in_pixels
-        baddy_1_top = centre_y - world.metres_to_pixels*player.pos.rel_y + baddy.pos.tile_y*world.tile_side_in_pixels
+        diff = subtract(world, baddy.pos, player.pos)
+        baddy_ground_x = centre_x + diff.d_x*world.metres_to_pixels
+        baddy_ground_y = centre_y + diff.d_y*world.metres_to_pixels
         draw_rectangle(SURFACE,
-                       baddy_1_left, baddy_1_top,
+                       baddy_ground_x, baddy_ground_y,
                        world.metres_to_pixels * baddy.width,
                        world.metres_to_pixels * baddy.height,
-                       RED)
+                       RED,
+                       align_x=world.metres_to_pixels*(baddy.width / 2),
+                       align_y=world.metres_to_pixels*(baddy.height / 2))
 
-        baddy_2_left = 0.5*world.metres_to_pixels * baddy.width
-        baddy_2_top = world.metres_to_pixels * baddy.height
+        diff = subtract(world, baddy_2.pos, player.pos)
+        baddy_2_ground_x = centre_x + diff.d_x * world.metres_to_pixels
+        baddy_2_ground_y = centre_y + diff.d_y * world.metres_to_pixels
         draw_rectangle(SURFACE,
-                       baddy_2_left, baddy_2_top,
+                       baddy_2_ground_x, baddy_2_ground_y,
                        world.metres_to_pixels*baddy_2.width,
                        world.metres_to_pixels*baddy_2.height,
-                       RED)
+                       RED,
+                       align_x=world.metres_to_pixels * (baddy_2.width / 2),
+                       align_y=world.metres_to_pixels * (baddy_2.height / 2))
 
         # player debug info
 

@@ -21,6 +21,7 @@ class WorldPosition(object):
     def __init__(self):
         self.tile_x = 0
         self.tile_y = 0
+        self.tile_z = 0
         self.rel_x = 0  # tile-relative x and y
         self.rel_y = 0
 
@@ -39,3 +40,10 @@ class GameState(object):
         self.player_bitmaps = list()
         self.camera_pos = None
         self.player_pos = None
+
+
+class PositionDifference(object):
+    def __init__(self):
+        self.d_x = 0
+        self.d_y = 0
+        self.d_z = 0
