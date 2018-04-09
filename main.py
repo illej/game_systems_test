@@ -231,7 +231,7 @@ def main():
 
     # ----- SETUP ----- #
 
-    # TODO: episode 39 for camera!!
+    # TODO: episode 42 for 2d vectors. (@ 27 mins)
 
     tiles_0_0 = [
         [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
@@ -350,7 +350,7 @@ def main():
         if keys[K_RIGHT] is 1:
             player_x_delta = 1
 
-        player_speed = 2
+        player_speed = 2  # TODO: move to Entity or GameState?
 
         player_x_delta *= player_speed
         player_y_delta *= player_speed
