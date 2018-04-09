@@ -350,8 +350,13 @@ def main():
         if keys[K_RIGHT] is 1:
             player_x_delta = 1
 
-        player_x_delta *= 10
-        player_y_delta *= 10
+        player_speed = 2
+
+        player_x_delta *= player_speed
+        player_y_delta *= player_speed
+
+        if player_x_delta != 0 and player_y_delta != 0:
+            player_x_delta *= 0.7071067811865475
 
         # TODO: diagonal will be faster - fixed with vectors
         new_player_pos = deepcopy(player.pos)
