@@ -90,7 +90,8 @@ def draw_rectangle(buffer, x, y, width, height, colour, align_x=0, align_y=0):
     if max_y > buffer.get_width():
         max_y = buffer.get_width()
 
-    pygame.draw.rect(buffer, colour, (min_x, min_y, max_x, max_y))
+    pygame.draw.rect(buffer, BLACK, (min_x, min_y, max_x - 1, max_y - 1))
+    pygame.draw.rect(buffer, colour, (min_x + 1, min_y + 1, max_x, max_y))
 
 
 def draw_debug_text(world, contents, entity, x_offset=0, y_offset=0):
@@ -231,7 +232,7 @@ def main():
 
     # ----- SETUP ----- #
 
-    # TODO: episode 42 for 2d vectors. (@ 27 mins)
+    # TODO: episode 42 for replacing scalar value code with 2d vectors. (@ 48 mins)
 
     tiles_0_0 = [
         [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
@@ -350,7 +351,7 @@ def main():
         if keys[K_RIGHT] is 1:
             player_x_delta = 1
 
-        player_speed = 2  # TODO: move to Entity or GameState?
+        player_speed = 10  # TODO: move to Entity or GameState?
 
         player_x_delta *= player_speed
         player_y_delta *= player_speed
