@@ -151,19 +151,19 @@ class MovementComponent(object):
         return path
 
     def move(self, func, world, actor, step, delta_time):
-        if step != (actor.pos.tile_x, actor.pos.tile_y):
+        if step != (actor.pos.tile.x, actor.pos.tile.y):
             step_x, step_y = step
 
-            x_delta = step_x - actor.pos.tile_x
-            y_delta = step_y - actor.pos.tile_y
+            x_delta = step_x - actor.pos.tile.x
+            y_delta = step_y - actor.pos.tile.y
 
             # speed
             x_delta *= 5
             y_delta *= 5
 
             new_pos = deepcopy(actor.pos)
-            new_pos.rel_x += (delta_time * x_delta)
-            new_pos.rel_y += (delta_time * y_delta)
+            new_pos.rel.x += (delta_time * x_delta)
+            new_pos.rel.y += (delta_time * y_delta)
             new_pos = func(world, new_pos)
 
             actor.pos = deepcopy(new_pos)
@@ -181,8 +181,8 @@ class MovementComponent(object):
         return result
 
     def update(self, func, world, tile_map, actor, target, delta_time):
-        start = (actor.pos.tile_x, actor.pos.tile_y)
-        goal = (target.pos.tile_x, target.pos.tile_y)
+        start = (actor.pos.tile.x, actor.pos.tile.y)
+        goal = (target.pos.tile.x, target.pos.tile.y)
 
         if not self.target:
             self.target = goal

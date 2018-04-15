@@ -1,7 +1,7 @@
 class World(object):
     def __init__(self):
-        self.tile_size_in_metres = 0
-        self.tile_size_in_pixels = 0
+        self.tile_side_in_metres = 0
+        self.tile_side_in_pixels = 0
         self.metres_to_pixels = 0
         self.upper_left_x = 0
         self.upper_left_y = 0
@@ -19,9 +19,11 @@ class TileMap(object):
 
 class WorldPosition(object):
     def __init__(self):
+        self.tile = Vector2(0, 0)
         self.tile_x = 0
         self.tile_y = 0
         self.tile_z = 0
+        self.rel = Vector2(0, 0)
         self.rel_x = 0  # tile-relative x and y
         self.rel_y = 0
 
@@ -44,8 +46,7 @@ class GameState(object):
 
 class PositionDifference(object):
     def __init__(self):
-        self.d_x = 0
-        self.d_y = 0
+        self.d_xy = 0
         self.d_z = 0
 
 
@@ -73,14 +74,28 @@ class Vector2(object):
     6
     >>> v5.y
     6
+    >>> fred = 10
+    >>> fred *= 10
+    >>> fred
+    100
+    >>> v = Vector2(2, 2)
+    >>> v *= 3
+    >>> v.x
+    6
+    >>> v = Vector2(5, 5)
+    >>> v += Vector2(3, 3)
+    >>> v.x
+    8
+    >>> Vector2(3, 3)
+    <__main__.v2 x=3, y=3>
     """
-    def __init__(self, x, y):
+    def __init__(self, x, y):  # TODO: maybe make constructor params default to 0
         self.x = x
         self.y = y
         self.elements = [self.x, self.y]
 
-    def __str__(self):
-        return str((self.x, self.y))
+    def __repr__(self):
+        return '<{}.v2 x={}, y={}>'.format(self.__module__, self.x, self.y)
 
     def __add__(self, other):
         x = self.x + other.x
@@ -98,10 +113,25 @@ class Vector2(object):
         return Vector2(-self.x, -self.y)
 
     def __mul__(self, other):
+        """
+        Multiplies the Vector by a float
+        :param other: float
+        :return: new Vector product
+        """
         x = self.x * other
         y = self.y * other
 
         return Vector2(x, y)
+
+    def __iadd__(self, other):
+        vector = self + other
+
+        return vector
+
+    def __imul__(self, other):
+        vector = self * other
+
+        return vector
 
     def __getitem__(self, item):
         return self.elements[item]

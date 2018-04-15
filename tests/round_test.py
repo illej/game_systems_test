@@ -19,8 +19,12 @@ def test_02():
     assert floor_float(-1.3) == -2
 
 
-def vector2_test_01():
-    assert Vector2(1, 1) + Vector2(2, 2) == Vector2(3, 3)
+def v2_add(v1, v2):
+    return v1 + v2
+
+
+def test_v2_01():
+    assert v2_add(Vector2(1, 1), Vector2(2, 2)) == Vector2(3, 3)
 
 
 def vector2_test_02():

@@ -53,12 +53,10 @@ def round_float_to_int(f):
 def subtract(world, a, b):
     result = PositionDifference()
 
-    d_tile_x = a.tile_x - b.tile_x
-    d_tile_y = a.tile_y - b.tile_y
+    d_tile_xy = a.tile - b.tile
     d_tile_z = a.tile_z - b.tile_z
 
-    result.d_x = world.tile_side_in_metres * d_tile_x + (a.rel_x - b.rel_x)
-    result.d_y = world.tile_side_in_metres * d_tile_y + (a.rel_y - b.rel_y)
+    result.d_xy = (d_tile_xy * world.tile_side_in_metres) + (a.rel - b.rel)
     result.d_z = world.tile_side_in_metres * d_tile_z + 0  # TODO: Not yet implemented
 
     return result
@@ -90,16 +88,22 @@ def draw_rectangle(buffer, x, y, width, height, colour, align_x=0, align_y=0):
     if max_y > buffer.get_width():
         max_y = buffer.get_width()
 
-    pygame.draw.rect(buffer, BLACK, (min_x, min_y, max_x - 1, max_y - 1))
-    pygame.draw.rect(buffer, colour, (min_x + 1, min_y + 1, max_x, max_y))
+    pygame.draw.rect(buffer, BLACK, (min_x, min_y, max_x, max_y))
+    pygame.draw.rect(buffer, colour, (min_x + 1, min_y + 1, max_x - 1, max_y - 1))
 
 
-def draw_debug_text(world, contents, entity, x_offset=0, y_offset=0):
-    font = pygame.font.Font('freesansbold.ttf', 10)
-    text_surface = font.render(contents, True, WHITE, BLACK)
+def draw_debug_text(world, contents, entity=None, x_offset=0, y_offset=0):
+    font = pygame.font.SysFont('monospace', 13)
+    text_surface = font.render(contents, False, WHITE, BLACK)
     text_rect = text_surface.get_rect()
-    text_rect.left = x_offset + (world.metres_to_pixels * world.upper_left_x) + (world.tile_side_in_pixels * entity.pos.tile_x) + (world.metres_to_pixels * entity.pos.rel_x) + (world.metres_to_pixels * entity.width)
-    text_rect.top = y_offset + (world.metres_to_pixels * world.upper_left_y) + (world.tile_side_in_pixels * entity.pos.tile_y) + (world.metres_to_pixels * entity.pos.rel_y)
+
+    if entity:
+        text_rect.left = x_offset + (world.metres_to_pixels * world.upper_left_x) + (world.tile_side_in_pixels * entity.pos.tile_x) + (world.metres_to_pixels * entity.pos.rel_x) + (world.metres_to_pixels * entity.width)
+        text_rect.top = y_offset + (world.metres_to_pixels * world.upper_left_y) + (world.tile_side_in_pixels * entity.pos.tile_y) + (world.metres_to_pixels * entity.pos.rel_y)
+    else:
+        text_rect.left = x_offset
+        text_rect.top = y_offset
+
     SURFACE.blit(text_surface, text_rect)
 
 
@@ -115,7 +119,7 @@ def is_tile_map_point_empty(world, tile_map, test_tile_x, test_tile_y):
 
 
 def is_world_point_empty(world, pos):
-    is_empty = is_tile_map_point_empty(world, world.tile_map, pos.tile_x, pos.tile_y)
+    is_empty = is_tile_map_point_empty(world, world.tile_map, pos.tile.x, pos.tile.y)
 
     return is_empty
 
@@ -155,8 +159,8 @@ def canon_coord(world, tile, rel):
 def re_canonical_position(world, old_pos):
     result = deepcopy(old_pos)
 
-    result.tile_x, result.rel_x = canon_coord(world, result.tile_x, result.rel_x)
-    result.tile_y, result.rel_y = canon_coord(world, result.tile_y, result.rel_y)
+    result.tile.x, result.rel.x = canon_coord(world, result.tile.x, result.rel.x)
+    result.tile.y, result.rel.y = canon_coord(world, result.tile.y, result.rel.y)
 
     return result
 
@@ -229,6 +233,11 @@ def main():
         gamepads = [x360.Controller(i) for i in pygame.joystick.get_count()]
     else:
         print('> no controllers found. use keyboard for input.')
+
+    __elapsed = 0
+    __debug_update_rate = 0.5
+    __fps = 0
+    __delta = 0
 
     # ----- SETUP ----- #
 
@@ -303,30 +312,30 @@ def main():
     upper_left_y = 0
 
     camera_pos = WorldPosition()
-    camera_pos.tile_x = world.tile_map.tile_count_x / 2
-    camera_pos.tile_y = world.tile_map.tile_count_y / 2
+    camera_pos.tile.x = world.tile_map.tile_count_x / 2
+    camera_pos.tile.y = world.tile_map.tile_count_y / 2
 
     player = Entity(world.tile_side_in_metres * 0.5, world.tile_side_in_metres * 0.5)
-    player.pos.tile_x = 3
-    player.pos.tile_y = 3
-    player.pos.rel_x = 0.5
-    player.pos.rel_y = 0.5
+    player.pos.tile.x = 3
+    player.pos.tile.y = 3
+    player.pos.rel.x = 0.5
+    player.pos.rel.y = 0.5
 
     player_bitmap = PlayerBitmaps()
     player_bitmap.align_x = world.tile_side_in_pixels / 2
     player_bitmap.align_y = world.tile_side_in_pixels / 2
 
     baddy = Entity(world.tile_side_in_metres * 0.5, world.tile_side_in_metres * 0.5)
-    baddy.pos.tile_x = 5
-    baddy.pos.tile_y = 5
-    baddy.pos.rel_x = 0.5
-    baddy.pos.rel_y = 0.5
+    baddy.pos.tile.x = 5
+    baddy.pos.tile.y = 5
+    baddy.pos.rel.x = 0.5
+    baddy.pos.rel.y = 0.5
 
     baddy_2 = Entity(world.tile_side_in_metres * 0.5, world.tile_side_in_metres * 0.5)
-    baddy_2.pos.tile_x = 10
-    baddy_2.pos.tile_y = 1
-    baddy_2.pos.rel_x = 0.2
-    baddy_2.pos.rel_y = 0.2
+    baddy_2.pos.tile.x = 10
+    baddy_2.pos.tile.y = 1
+    baddy_2.pos.rel.x = 0.2
+    baddy_2.pos.rel.y = 0.2
 
     while True:
         delta = CLOCK.get_time() / 1000
@@ -339,30 +348,27 @@ def main():
         # TODO: using keyboard input, modify for x360
         keys = pygame.key.get_pressed()
 
-        player_x_delta = 0
-        player_y_delta = 0
+        player_delta = Vector2(0, 0)
 
         if keys[K_UP] is 1:
-            player_y_delta = -1
+            player_delta.y = -1
         if keys[K_DOWN] is 1:
-            player_y_delta = 1
+            player_delta.y = 1
         if keys[K_LEFT] is 1:
-            player_x_delta = -1
+            player_delta.x = -1
         if keys[K_RIGHT] is 1:
-            player_x_delta = 1
+            player_delta.x = 1
 
         player_speed = 10  # TODO: move to Entity or GameState?
 
-        player_x_delta *= player_speed
-        player_y_delta *= player_speed
+        player_delta *= player_speed
 
-        if player_x_delta != 0 and player_y_delta != 0:
-            player_x_delta *= 0.7071067811865475
+        if player_delta.x != 0 and player_delta.y != 0:
+            player_delta *= 0.7071067811865475
 
         # TODO: diagonal will be faster - fixed with vectors
         new_player_pos = deepcopy(player.pos)
-        new_player_pos.rel_x += (delta * player_x_delta)
-        new_player_pos.rel_y += (delta * player_y_delta)
+        new_player_pos.rel += (player_delta * delta)
         new_player_pos = re_canonical_position(world, new_player_pos)
 
         if is_world_point_empty(world, new_player_pos):
@@ -387,8 +393,8 @@ def main():
 
         for y in range(y_start, y_end):
             for x in range(x_start, x_end):
-                column = x + player.pos.tile_x
-                row = y + player.pos.tile_y
+                column = x + player.pos.tile.x
+                row = y + player.pos.tile.y
 
                 tile = get_tile_value_unchecked(world, column, row)
                 grey = (125, 125, 125)
@@ -399,15 +405,15 @@ def main():
                     grey = (50, 50, 50)
                 if (column, row) in baddy_2.mov.path:
                     grey = (50, 50, 50)
-                if column == player.pos.tile_x and row == player.pos.tile_y or \
-                        column == baddy.pos.tile_x and row == baddy.pos.tile_y or \
-                        column == baddy_2.pos.tile_x and row == baddy_2.pos.tile_y:
+                if column == player.pos.tile.x and row == player.pos.tile.y or \
+                        column == baddy.pos.tile.x and row == baddy.pos.tile.y or \
+                        column == baddy_2.pos.tile.x and row == baddy_2.pos.tile.y:
                     grey = (0, 0, 0)
                 if tile is -1:
                     grey = (255, 0, 0)
 
-                min_x = centre_x - world.metres_to_pixels*player.pos.rel_x + x*world.tile_side_in_pixels
-                min_y = centre_y - world.metres_to_pixels*player.pos.rel_y + y*world.tile_side_in_pixels
+                min_x = centre_x - world.metres_to_pixels*player.pos.rel.x + x*world.tile_side_in_pixels
+                min_y = centre_y - world.metres_to_pixels*player.pos.rel.y + y*world.tile_side_in_pixels
                 max_x = world.tile_side_in_pixels
                 max_y = world.tile_side_in_pixels
                 draw_rectangle(SURFACE, min_x, min_y, max_x, max_y, grey)
@@ -424,8 +430,8 @@ def main():
                        align_y=world.metres_to_pixels*(player.height / 2))
 
         diff = subtract(world, baddy.pos, player.pos)
-        baddy_ground_x = centre_x + diff.d_x*world.metres_to_pixels
-        baddy_ground_y = centre_y + diff.d_y*world.metres_to_pixels
+        baddy_ground_x = centre_x + diff.d_xy.x*world.metres_to_pixels
+        baddy_ground_y = centre_y + diff.d_xy.y*world.metres_to_pixels
         draw_rectangle(SURFACE,
                        baddy_ground_x, baddy_ground_y,
                        world.metres_to_pixels * baddy.width,
@@ -435,8 +441,8 @@ def main():
                        align_y=world.metres_to_pixels*(baddy.height / 2))
 
         diff = subtract(world, baddy_2.pos, player.pos)
-        baddy_2_ground_x = centre_x + diff.d_x * world.metres_to_pixels
-        baddy_2_ground_y = centre_y + diff.d_y * world.metres_to_pixels
+        baddy_2_ground_x = centre_x + diff.d_xy.x * world.metres_to_pixels
+        baddy_2_ground_y = centre_y + diff.d_xy.y * world.metres_to_pixels
         draw_rectangle(SURFACE,
                        baddy_2_ground_x, baddy_2_ground_y,
                        world.metres_to_pixels*baddy_2.width,
@@ -446,6 +452,15 @@ def main():
                        align_y=world.metres_to_pixels * (baddy_2.height / 2))
 
         # player debug info
+        if __elapsed < __debug_update_rate:
+            __elapsed += delta
+        else:
+            __fps = delta * 60 * 60
+            __delta = delta
+            __elapsed = 0
+
+        draw_debug_text(world, 'fps : {}'.format(__fps))
+        draw_debug_text(world, 'delta : {}'.format(__delta), y_offset=15)
 
         pygame.display.update()
         CLOCK.tick(FPS)
