@@ -88,8 +88,7 @@ def draw_rectangle(buffer, x, y, width, height, colour, align_x=0, align_y=0):
     if max_y > buffer.get_width():
         max_y = buffer.get_width()
 
-    pygame.draw.rect(buffer, BLACK, (min_x, min_y, max_x, max_y))
-    pygame.draw.rect(buffer, colour, (min_x + 1, min_y + 1, max_x - 1, max_y - 1))
+    pygame.draw.rect(buffer, colour, (min_x, min_y, max_x, max_y))
 
 
 def draw_debug_text(world, contents, entity=None, x_offset=0, y_offset=0):
@@ -235,7 +234,7 @@ def main():
         print('> no controllers found. use keyboard for input.')
 
     __elapsed = 0
-    __debug_update_rate = 0.5
+    __debug_update_rate = 0.3
     __fps = 0
     __delta = 0
 
@@ -337,6 +336,13 @@ def main():
     baddy_2.pos.rel.x = 0.2
     baddy_2.pos.rel.y = 0.2
 
+    centre = Vector2(SURFACE.get_width() / 2,
+                     SURFACE.get_height() / 2)
+    current = Vector2(0, 0)
+    min = Vector2(0, 0)
+    max = Vector2(world.tile_side_in_pixels,
+                  world.tile_side_in_pixels)
+
     while True:
         delta = CLOCK.get_time() / 1000
 
@@ -348,27 +354,26 @@ def main():
         # TODO: using keyboard input, modify for x360
         keys = pygame.key.get_pressed()
 
-        player_delta = Vector2(0, 0)
+        dd_player_pos = Vector2(0, 0)
 
         if keys[K_UP] is 1:
-            player_delta.y = -1
+            dd_player_pos.y = -1
         if keys[K_DOWN] is 1:
-            player_delta.y = 1
+            dd_player_pos.y = 1
         if keys[K_LEFT] is 1:
-            player_delta.x = -1
+            dd_player_pos.x = -1
         if keys[K_RIGHT] is 1:
-            player_delta.x = 1
+            dd_player_pos.x = 1
 
         player_speed = 10  # TODO: move to Entity or GameState?
 
-        player_delta *= player_speed
+        dd_player_pos *= player_speed
 
-        if player_delta.x != 0 and player_delta.y != 0:
-            player_delta *= 0.7071067811865475
+        if dd_player_pos.x != 0 and dd_player_pos.y != 0:
+            dd_player_pos *= 0.7071067811865475
 
-        # TODO: diagonal will be faster - fixed with vectors
         new_player_pos = deepcopy(player.pos)
-        new_player_pos.rel += (player_delta * delta)
+        new_player_pos.rel += (dd_player_pos * delta)
         new_player_pos = re_canonical_position(world, new_player_pos)
 
         if is_world_point_empty(world, new_player_pos):
@@ -388,8 +393,8 @@ def main():
         x_start = -20
         x_end = 20
 
-        centre_x = SURFACE.get_width() / 2
-        centre_y = SURFACE.get_height() / 2
+        # centre = Vector2(SURFACE.get_width() / 2,
+        #                  SURFACE.get_height() / 2)
 
         for y in range(y_start, y_end):
             for x in range(x_start, x_end):
@@ -412,15 +417,14 @@ def main():
                 if tile is -1:
                     grey = (255, 0, 0)
 
-                min_x = centre_x - world.metres_to_pixels*player.pos.rel.x + x*world.tile_side_in_pixels
-                min_y = centre_y - world.metres_to_pixels*player.pos.rel.y + y*world.tile_side_in_pixels
-                max_x = world.tile_side_in_pixels
-                max_y = world.tile_side_in_pixels
-                draw_rectangle(SURFACE, min_x, min_y, max_x, max_y, grey)
+                current.x = x * world.tile_side_in_pixels
+                current.y = y * world.tile_side_in_pixels
+                min = centre - (player.pos.rel*world.metres_to_pixels) + current
+                draw_rectangle(SURFACE, min.x, min.y, max.x, max.y, grey)
 
         # draw entities
-        player_ground_x = centre_x
-        player_ground_y = centre_y
+        player_ground_x = centre.x
+        player_ground_y = centre.y
         draw_rectangle(SURFACE,
                        player_ground_x, player_ground_y,
                        world.metres_to_pixels*player.width,
@@ -430,8 +434,8 @@ def main():
                        align_y=world.metres_to_pixels*(player.height / 2))
 
         diff = subtract(world, baddy.pos, player.pos)
-        baddy_ground_x = centre_x + diff.d_xy.x*world.metres_to_pixels
-        baddy_ground_y = centre_y + diff.d_xy.y*world.metres_to_pixels
+        baddy_ground_x = centre.x + diff.d_xy.x*world.metres_to_pixels
+        baddy_ground_y = centre.y + diff.d_xy.y*world.metres_to_pixels
         draw_rectangle(SURFACE,
                        baddy_ground_x, baddy_ground_y,
                        world.metres_to_pixels * baddy.width,
@@ -441,8 +445,8 @@ def main():
                        align_y=world.metres_to_pixels*(baddy.height / 2))
 
         diff = subtract(world, baddy_2.pos, player.pos)
-        baddy_2_ground_x = centre_x + diff.d_xy.x * world.metres_to_pixels
-        baddy_2_ground_y = centre_y + diff.d_xy.y * world.metres_to_pixels
+        baddy_2_ground_x = centre.x + diff.d_xy.x * world.metres_to_pixels
+        baddy_2_ground_y = centre.y + diff.d_xy.y * world.metres_to_pixels
         draw_rectangle(SURFACE,
                        baddy_2_ground_x, baddy_2_ground_y,
                        world.metres_to_pixels*baddy_2.width,
@@ -455,12 +459,13 @@ def main():
         if __elapsed < __debug_update_rate:
             __elapsed += delta
         else:
-            __fps = delta * 60 * 60
+            __fps = 1 / delta
             __delta = delta
             __elapsed = 0
 
         draw_debug_text(world, 'fps : {}'.format(__fps))
         draw_debug_text(world, 'delta : {}'.format(__delta), y_offset=15)
+        # draw_debug_text(world, 'CLOCK_raw : {}'.format(CLOCK.get_rawtime()), y_offset=30)
 
         pygame.display.update()
         CLOCK.tick(FPS)

@@ -42,6 +42,8 @@ class GameState(object):
         self.player_bitmaps = list()
         self.camera_pos = None
         self.player_pos = None
+        self.d_player_pos = Vector2(0, 0)  # velocity (first derivative)
+        self.dd_player_pos = Vector2(0, 0)  # acceleration (second derivative)
 
 
 class PositionDifference(object):
@@ -52,43 +54,6 @@ class PositionDifference(object):
 
 # math.h
 class Vector2(object):
-    """"
-    >>> v1 = Vector2(1, 1)
-    >>> v2 = Vector2(2, 2)
-    >>> v3 = v1 + v2
-    >>> v3.x
-    3
-    >>> v3.y
-    3
-    >>> v4 = -v1
-    >>> v4.x
-    -1
-    >>> v4.y
-    -1
-    >>> v4[0]
-    -1
-    >>> v4[1]
-    -1
-    >>> v5 = v2 * 3
-    >>> v5.x
-    6
-    >>> v5.y
-    6
-    >>> fred = 10
-    >>> fred *= 10
-    >>> fred
-    100
-    >>> v = Vector2(2, 2)
-    >>> v *= 3
-    >>> v.x
-    6
-    >>> v = Vector2(5, 5)
-    >>> v += Vector2(3, 3)
-    >>> v.x
-    8
-    >>> Vector2(3, 3)
-    <__main__.v2 x=3, y=3>
-    """
     def __init__(self, x, y):  # TODO: maybe make constructor params default to 0
         self.x = x
         self.y = y
