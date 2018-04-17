@@ -62,6 +62,10 @@ def subtract(world, a, b):
     return result
 
 
+def square(f):
+    return f * f
+
+
 def get_controller(index):
     result = None
     pygame.joystick.init()
@@ -97,8 +101,8 @@ def draw_debug_text(world, contents, entity=None, x_offset=0, y_offset=0):
     text_rect = text_surface.get_rect()
 
     if entity:
-        text_rect.left = x_offset + (world.metres_to_pixels * world.upper_left_x) + (world.tile_side_in_pixels * entity.pos.tile_x) + (world.metres_to_pixels * entity.pos.rel_x) + (world.metres_to_pixels * entity.width)
-        text_rect.top = y_offset + (world.metres_to_pixels * world.upper_left_y) + (world.tile_side_in_pixels * entity.pos.tile_y) + (world.metres_to_pixels * entity.pos.rel_y)
+        text_rect.left = x_offset + (world.metres_to_pixels * world.upper_left_x) + (world.tile_side_in_pixels * entity.pos.tile.x) + (world.metres_to_pixels * entity.pos.rel.x) + (world.metres_to_pixels * entity.width)
+        text_rect.top = y_offset + (world.metres_to_pixels * world.upper_left_y) + (world.tile_side_in_pixels * entity.pos.tile.y) + (world.metres_to_pixels * entity.pos.rel.y)
     else:
         text_rect.left = x_offset
         text_rect.top = y_offset
@@ -354,7 +358,8 @@ def main():
         # TODO: using keyboard input, modify for x360
         keys = pygame.key.get_pressed()
 
-        dd_player_pos = Vector2(0, 0)
+        d_player_pos = deepcopy(player.pos.d)
+        dd_player_pos = Vector2(0, 0)  # player.pos.dd
 
         if keys[K_UP] is 1:
             dd_player_pos.y = -1
@@ -365,15 +370,20 @@ def main():
         if keys[K_RIGHT] is 1:
             dd_player_pos.x = 1
 
-        player_speed = 10  # TODO: move to Entity or GameState?
+        player_speed = 10  # m/s^2 TODO: move to Entity or GameState?
 
         dd_player_pos *= player_speed
 
         if dd_player_pos.x != 0 and dd_player_pos.y != 0:
             dd_player_pos *= 0.7071067811865475
 
+        player.pos.dd = deepcopy(dd_player_pos)
+
         new_player_pos = deepcopy(player.pos)
-        new_player_pos.rel += (dd_player_pos * delta)
+        new_player_pos.rel = (dd_player_pos * 0.5) * square(delta) + \
+                             (d_player_pos * delta) + \
+                             new_player_pos.rel
+        new_player_pos.d = (dd_player_pos * delta) + d_player_pos
         new_player_pos = re_canonical_position(world, new_player_pos)
 
         if is_world_point_empty(world, new_player_pos):
@@ -465,7 +475,9 @@ def main():
 
         draw_debug_text(world, 'fps : {}'.format(__fps))
         draw_debug_text(world, 'delta : {}'.format(__delta), y_offset=15)
-        # draw_debug_text(world, 'CLOCK_raw : {}'.format(CLOCK.get_rawtime()), y_offset=30)
+
+        draw_debug_text(world, 'd : [{}, {}]'.format(player.pos.d.x, player.pos.d.y), x_offset=player_ground_x, y_offset=player_ground_y)
+        draw_debug_text(world, 'dd : [{}, {}]'.format(player.pos.dd.x, player.pos.dd.y), x_offset=player_ground_x, y_offset=15+player_ground_y)
 
         pygame.display.update()
         CLOCK.tick(FPS)

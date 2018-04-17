@@ -26,6 +26,8 @@ class WorldPosition(object):
         self.rel = Vector2(0, 0)
         self.rel_x = 0  # tile-relative x and y
         self.rel_y = 0
+        self.d = Vector2(0, 0)
+        self.dd = Vector2(0, 0)
 
 
 class PlayerBitmaps(object):
