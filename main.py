@@ -66,6 +66,10 @@ def square(f):
     return f * f
 
 
+def inner(a, b):
+    return a.x * b.x + a.y * b.y
+
+
 def get_controller(index):
     result = None
     pygame.joystick.init()
@@ -358,7 +362,7 @@ def main():
         # TODO: using keyboard input, modify for x360
         keys = pygame.key.get_pressed()
 
-        d_player_pos = deepcopy(player.pos.d)
+        # TODO: ep 45/46
         dd_player_pos = Vector2(0, 0)  # player.pos.dd
 
         if keys[K_UP] is 1:
@@ -370,24 +374,51 @@ def main():
         if keys[K_RIGHT] is 1:
             dd_player_pos.x = 1
 
-        player_speed = 10  # m/s^2 TODO: move to Entity or GameState?
-
-        dd_player_pos *= player_speed
-
         if dd_player_pos.x != 0 and dd_player_pos.y != 0:
             dd_player_pos *= 0.7071067811865475
 
-        player.pos.dd = deepcopy(dd_player_pos)
+        player_speed = 20  # m/s^2 TODO: move to Entity or GameState?
+        dd_player_pos *= player_speed
+
+        dd_player_pos += player.pos.d * -3  # friction
+
+        # player.pos.dd = deepcopy(dd_player_pos)
 
         new_player_pos = deepcopy(player.pos)
         new_player_pos.rel = (dd_player_pos * 0.5) * square(delta) + \
-                             (d_player_pos * delta) + \
+                             (player.pos.d * delta) + \
                              new_player_pos.rel
-        new_player_pos.d = (dd_player_pos * delta) + d_player_pos
+        new_player_pos.d = (dd_player_pos * delta) + player.pos.d
         new_player_pos = re_canonical_position(world, new_player_pos)
 
-        if is_world_point_empty(world, new_player_pos):
+        # NEW
+        # bounce
+        collided = False
+        collision_pos = WorldPosition()
+
+        if not is_world_point_empty(world, new_player_pos):
+            collision_pos = deepcopy(new_player_pos)
+            collided = True
+
+        if collided:
+            r = Vector2(0, 0)
+
+            if collision_pos.tile.x < player.pos.tile.x:
+                r = Vector2(1, 0)
+            if collision_pos.tile.x > player.pos.tile.x:
+                r = Vector2(-1, 0)
+            if collision_pos.tile.y < player.pos.tile.y:
+                r = Vector2(0, 1)
+            if collision_pos.tile.y > player.pos.tile.y:
+                r = Vector2(0, -1)
+
+            player.pos.d = player.pos.d - r*inner(player.pos.d, r)*1
+        else:
             player.pos = deepcopy(new_player_pos)
+
+        # OLD
+        # if is_world_point_empty(world, new_player_pos):
+        #    player.pos = deepcopy(new_player_pos)
 
         # ----- UPDATE ----- #
 
@@ -477,7 +508,7 @@ def main():
         draw_debug_text(world, 'delta : {}'.format(__delta), y_offset=15)
 
         draw_debug_text(world, 'd : [{}, {}]'.format(player.pos.d.x, player.pos.d.y), x_offset=player_ground_x, y_offset=player_ground_y)
-        draw_debug_text(world, 'dd : [{}, {}]'.format(player.pos.dd.x, player.pos.dd.y), x_offset=player_ground_x, y_offset=15+player_ground_y)
+        draw_debug_text(world, 'dd : [{}, {}]'.format(dd_player_pos.x, dd_player_pos.y), x_offset=player_ground_x, y_offset=15+player_ground_y)
 
         pygame.display.update()
         CLOCK.tick(FPS)
