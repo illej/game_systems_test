@@ -70,6 +70,14 @@ def inner(a, b):
     return a.x * b.x + a.y * b.y
 
 
+def length_sq(a):
+    return inner(a, a)
+
+
+def absolute_value(f):
+    return abs(f)
+
+
 def get_controller(index):
     result = None
     pygame.joystick.init()
@@ -172,6 +180,21 @@ def re_canonical_position(world, old_pos):
     return result
 
 
+def centred_tile_point(x, y):
+    result = WorldPosition()
+
+    result.tile.x = x
+    result.tile.y = y
+
+    return result
+
+
+def closest_point_in_rectangle(min, max, diff):
+    result = None
+
+    return result
+
+
 def update_familiar(familiar, player):
     delta_pos_x = abs(player.x - familiar.x)
     delta_pos_y = abs(player.y - familiar.y)
@@ -215,6 +238,11 @@ def update_baddy(level, baddy, player):
         baddy.state = 'no target'
 
 
+def are_on_same_tile(old_pos, current_pos):
+    # TODO: tracking the player through z levels
+    pass
+
+
 def weld_maps(maps):
     result = None
 
@@ -235,11 +263,130 @@ def weld_maps(maps):
     return result
 
 
+def get_entity(game_state, index):
+    entity = None
+
+    if 0 < index < game_state.entity_count:
+        entity = game_state.entities[index]
+
+    return entity
+
+
+def add_entity(game_state):
+    entity = Entity()
+
+    game_state.entities.append(entity)
+    game_state.entity_count = len(game_state.entities)
+
+    entity_index = game_state.entities.index(entity)
+
+    return entity_index
+
+
+def initialize_player(world, entity):
+    # entity = Entity(w=world.tile_side_in_metres * 0.5, h=world.tile_side_in_metres * 0.5)
+    entity.exists = True
+    entity.pos.tile.x = 3
+    entity.pos.tile.y = 3
+    entity.pos.rel.x = 0.5
+    entity.pos.rel.y = 0.5
+
+
+def move_player(game_state, world, player, dd_player_pos, delta):
+    if dd_player_pos.x != 0 and dd_player_pos.y != 0:
+        dd_player_pos *= 0.7071067811865475
+
+    player_speed = 50  # m/s^2 TODO: move to Entity or GameState?
+    dd_player_pos *= player_speed
+    dd_player_pos += player.pos.d * -10  # friction
+
+    old_player_pos = deepcopy(player.pos)
+    new_player_pos = deepcopy(old_player_pos)
+    player_delta = (dd_player_pos * 0.5) * square(delta) + (player.pos.d * delta)
+    new_player_pos.rel = player_delta + new_player_pos.rel
+    new_player_pos.d = (dd_player_pos * delta) + player.pos.d
+    new_player_pos = re_canonical_position(world, new_player_pos)
+
+    if 1:  # OLD MOVEMENT CODE. THIS IS OVER. IT'S DONE.
+        collided = False
+        collision_pos = WorldPosition()
+
+        if not is_world_point_empty(world, new_player_pos):
+            collision_pos = deepcopy(new_player_pos)
+            collided = True
+
+        if collided:
+            r = Vector2(0, 0)
+
+            if collision_pos.tile.x < player.pos.tile.x:
+                r = Vector2(1, 0)
+            if collision_pos.tile.x > player.pos.tile.x:
+                r = Vector2(-1, 0)
+            if collision_pos.tile.y < player.pos.tile.y:
+                r = Vector2(0, 1)
+            if collision_pos.tile.y > player.pos.tile.y:
+                r = Vector2(0, -1)
+
+            player.pos.d = player.pos.d - r * inner(player.pos.d, r) * 1
+        else:
+            player.pos = deepcopy(new_player_pos)
+    else:  # END OF WEIRD MOVEMENT CODE
+        min_tile_x = 0
+        min_tile_y = 0
+        one_past_max_tile_x = 0
+        one_past_max_tile_y = 0
+        best_player_pos = deepcopy(player.pos)
+        best_distance_sq = length_sq(player_delta)
+        tile = Vector2(world.tile_side_in_metres, world.tile_side_in_metres)
+
+        for y in range(world.tile_map.tile_count_y):
+            for x in range(world.tile_map.tile_count_x):
+                test_tile_pos = centred_tile_point(x, y)
+                tile_value = get_tile_value_unchecked(world, x, y)
+                if tile_value is 0:
+                    min_corner = tile * -0.5
+                    max_corner = tile * 0.5
+
+                    diff = subtract(world, test_tile_pos, new_player_pos)
+                    test_pos = closest_point_in_rectangle(min_corner, max_corner, diff)
+                    # TODO: ep 46
+
+    # Update for camera movement
+    if not are_on_same_tile(old_player_pos, player.pos):
+        new_tile_value = get_tile_value_unchecked(world, player.pos.tile.x, player.pos.tile.y)
+
+        if new_tile_value is 3:
+            player.pos.tile_z += 1
+        elif new_tile_value is 4:
+            player.pos.tile_z -= 1
+
+    # Determine facing direction
+    if absolute_value(dd_player_pos.x) > absolute_value(dd_player_pos.y):
+        if dd_player_pos.x > 0:
+            player.facing_direction = 1  # east
+        else:
+            player.facing_direction = 3  # west
+    elif absolute_value(dd_player_pos.x) < absolute_value(dd_player_pos.y):
+        if dd_player_pos.y > 0:
+            player.facing_direction = 2  # south
+        else:
+            player.facing_direction = 0  # north
+
+
+class Keyboard(object):
+    def get_keys(self):
+        return pygame.key.get_pressed()
+
+
 def main():
-    if pygame.joystick.get_count() > 0:
-        gamepads = [x360.Controller(i) for i in pygame.joystick.get_count()]
+    pygame.joystick.init()
+
+    controllers = [x360.Controller(i) for i in range(pygame.joystick.get_count())]
+    if controllers:
+        print('> gamepads found ({}) {}'.format(len(controllers), controllers))
     else:
         print('> no controllers found. use keyboard for input.')
+    controllers.append(Keyboard())
 
     __elapsed = 0
     __debug_update_rate = 0.3
@@ -307,6 +454,8 @@ def main():
 
     # ----- Actual Setup ----- #
 
+    game_state = GameState()
+
     world = World()
     world.tile_side_in_metres = 1
     world.tile_side_in_pixels = 60
@@ -337,12 +486,18 @@ def main():
     baddy.pos.tile.y = 5
     baddy.pos.rel.x = 0.5
     baddy.pos.rel.y = 0.5
+    baddy.exists = True
+
+    game_state.entities.append(baddy)
 
     baddy_2 = Entity(world.tile_side_in_metres * 0.5, world.tile_side_in_metres * 0.5)
     baddy_2.pos.tile.x = 10
     baddy_2.pos.tile.y = 1
     baddy_2.pos.rel.x = 0.2
     baddy_2.pos.rel.y = 0.2
+    baddy_2.exists = True
+
+    game_state.entities.append(baddy_2)
 
     centre = Vector2(SURFACE.get_width() / 2,
                      SURFACE.get_height() / 2)
@@ -359,68 +514,42 @@ def main():
                 pygame.quit()
                 sys.exit()
 
-        # TODO: using keyboard input, modify for x360
-        keys = pygame.key.get_pressed()
+        for controller in controllers:
+            controlling_entity = get_entity(game_state, controller.get_id())
+            if controlling_entity:
+                dd_player_pos = Vector2(0, 0)
 
-        # TODO: ep 45/46
-        dd_player_pos = Vector2(0, 0)  # player.pos.dd
+                if isinstance(controller, x360.Controller):
+                    left_x, left_y = controller.get_left_stick()
+                    dd_player_pos = Vector2(left_x, left_y)
+                elif isinstance(controller, Keyboard):  # is digital (keyboard)
+                    keys = controller.get_keys()
 
-        if keys[K_UP] is 1:
-            dd_player_pos.y = -1
-        if keys[K_DOWN] is 1:
-            dd_player_pos.y = 1
-        if keys[K_LEFT] is 1:
-            dd_player_pos.x = -1
-        if keys[K_RIGHT] is 1:
-            dd_player_pos.x = 1
+                    if keys[K_UP] is 1:
+                        dd_player_pos.y = -1
+                    if keys[K_DOWN] is 1:
+                        dd_player_pos.y = 1
+                    if keys[K_LEFT] is 1:
+                        dd_player_pos.x = -1
+                    if keys[K_RIGHT] is 1:
+                        dd_player_pos.x = 1
 
-        if dd_player_pos.x != 0 and dd_player_pos.y != 0:
-            dd_player_pos *= 0.7071067811865475
+                move_player(game_state, world, controlling_entity, dd_player_pos, delta)
+            else:
+                start = controller.get_buttons()[7]  # TODO: maybe need a unified controller class for controllers and keyboards??
+                if start:
+                    entity_index = add_entity(game_state)
+                    controlling_entity = get_entity(game_state, entity_index)
+                    initialize_player(world, controlling_entity)
+                    game_state.player_index_for_controller[entity_index] = entity_index
+                    # TODO: epi 46 @ 47 mins
 
-        player_speed = 20  # m/s^2 TODO: move to Entity or GameState?
-        dd_player_pos *= player_speed
+        camera_following_entity = get_entity(game_state, game_state.camera_following_entity_index)
+        if camera_following_entity:
+            game_state.camera_pos.tile_z = camera_following_entity.pos.tile_z
 
-        dd_player_pos += player.pos.d * -3  # friction
-
-        # player.pos.dd = deepcopy(dd_player_pos)
-
-        new_player_pos = deepcopy(player.pos)
-        new_player_pos.rel = (dd_player_pos * 0.5) * square(delta) + \
-                             (player.pos.d * delta) + \
-                             new_player_pos.rel
-        new_player_pos.d = (dd_player_pos * delta) + player.pos.d
-        new_player_pos = re_canonical_position(world, new_player_pos)
-
-        # NEW
-        # bounce
-        collided = False
-        collision_pos = WorldPosition()
-
-        if not is_world_point_empty(world, new_player_pos):
-            collision_pos = deepcopy(new_player_pos)
-            collided = True
-
-        if collided:
-            r = Vector2(0, 0)
-
-            if collision_pos.tile.x < player.pos.tile.x:
-                r = Vector2(1, 0)
-            if collision_pos.tile.x > player.pos.tile.x:
-                r = Vector2(-1, 0)
-            if collision_pos.tile.y < player.pos.tile.y:
-                r = Vector2(0, 1)
-            if collision_pos.tile.y > player.pos.tile.y:
-                r = Vector2(0, -1)
-
-            player.pos.d = player.pos.d - r*inner(player.pos.d, r)*1
-        else:
-            player.pos = deepcopy(new_player_pos)
-
-        # OLD
-        # if is_world_point_empty(world, new_player_pos):
-        #    player.pos = deepcopy(new_player_pos)
-
-        # ----- UPDATE ----- #
+            diff = subtract(world, camera_following_entity.pos, game_state.camera_pos)
+            # code to snap camera along x and y tilemaps
 
         baddy.mov.update(re_canonical_position, world, world.tile_map, baddy, player, delta)
         baddy_2.mov.update(re_canonical_position, world, world.tile_map, baddy_2, player, delta)
@@ -463,7 +592,7 @@ def main():
                 min = centre - (player.pos.rel*world.metres_to_pixels) + current
                 draw_rectangle(SURFACE, min.x, min.y, max.x, max.y, grey)
 
-        # draw entities
+        # draw entities TODO: for loop
         player_ground_x = centre.x
         player_ground_y = centre.y
         draw_rectangle(SURFACE,
@@ -474,27 +603,42 @@ def main():
                        align_x=world.metres_to_pixels*(player.width / 2),
                        align_y=world.metres_to_pixels*(player.height / 2))
 
-        diff = subtract(world, baddy.pos, player.pos)
-        baddy_ground_x = centre.x + diff.d_xy.x*world.metres_to_pixels
-        baddy_ground_y = centre.y + diff.d_xy.y*world.metres_to_pixels
-        draw_rectangle(SURFACE,
-                       baddy_ground_x, baddy_ground_y,
-                       world.metres_to_pixels * baddy.width,
-                       world.metres_to_pixels * baddy.height,
-                       RED,
-                       align_x=world.metres_to_pixels*(baddy.width / 2),
-                       align_y=world.metres_to_pixels*(baddy.height / 2))
+        for e in game_state.entities:
+            if e.exists:
+                diff = subtract(world, e.pos, player.pos)
+                entity_ground_x = centre.x + diff.d_xy.x * world.metres_to_pixels
+                entity_ground_y = centre.y + diff.d_xy.y * world.metres_to_pixels
+                draw_rectangle(SURFACE,
+                               entity_ground_x, entity_ground_y,
+                               world.metres_to_pixels * e.width,
+                               world.metres_to_pixels * e.height,
+                               RED,
+                               align_x=world.metres_to_pixels * (e.width / 2),
+                               align_y=world.metres_to_pixels * (e.height / 2))
 
-        diff = subtract(world, baddy_2.pos, player.pos)
-        baddy_2_ground_x = centre.x + diff.d_xy.x * world.metres_to_pixels
-        baddy_2_ground_y = centre.y + diff.d_xy.y * world.metres_to_pixels
-        draw_rectangle(SURFACE,
-                       baddy_2_ground_x, baddy_2_ground_y,
-                       world.metres_to_pixels*baddy_2.width,
-                       world.metres_to_pixels*baddy_2.height,
-                       RED,
-                       align_x=world.metres_to_pixels * (baddy_2.width / 2),
-                       align_y=world.metres_to_pixels * (baddy_2.height / 2))
+        # OLD
+        #
+        # diff = subtract(world, baddy.pos, player.pos)
+        # baddy_ground_x = centre.x + diff.d_xy.x*world.metres_to_pixels
+        # baddy_ground_y = centre.y + diff.d_xy.y*world.metres_to_pixels
+        # draw_rectangle(SURFACE,
+        #                baddy_ground_x, baddy_ground_y,
+        #                world.metres_to_pixels * baddy.width,
+        #                world.metres_to_pixels * baddy.height,
+        #                RED,
+        #                align_x=world.metres_to_pixels*(baddy.width / 2),
+        #                align_y=world.metres_to_pixels*(baddy.height / 2))
+        #
+        # diff = subtract(world, baddy_2.pos, player.pos)
+        # baddy_2_ground_x = centre.x + diff.d_xy.x * world.metres_to_pixels
+        # baddy_2_ground_y = centre.y + diff.d_xy.y * world.metres_to_pixels
+        # draw_rectangle(SURFACE,
+        #                baddy_2_ground_x, baddy_2_ground_y,
+        #                world.metres_to_pixels*baddy_2.width,
+        #                world.metres_to_pixels*baddy_2.height,
+        #                RED,
+        #                align_x=world.metres_to_pixels * (baddy_2.width / 2),
+        #                align_y=world.metres_to_pixels * (baddy_2.height / 2))
 
         # player debug info
         if __elapsed < __debug_update_rate:

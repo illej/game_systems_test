@@ -22,7 +22,7 @@ class WorldPosition(object):
         self.tile = Vector2(0, 0)
         self.tile_x = 0
         self.tile_y = 0
-        self.tile_z = 0
+        self.tile_z = 0  # for tracking z level for camera
         self.rel = Vector2(0, 0)
         self.rel_x = 0  # tile-relative x and y
         self.rel_y = 0
@@ -42,10 +42,13 @@ class PlayerBitmaps(object):
 class GameState(object):
     def __init__(self):
         self.player_bitmaps = list()
-        self.camera_pos = None
-        self.player_pos = None
-        self.d_player_pos = Vector2(0, 0)  # velocity (first derivative)
-        self.dd_player_pos = Vector2(0, 0)  # acceleration (second derivative)
+        self.camera_pos = WorldPosition()
+
+        self.player_index_for_controller = list()
+        self.entity_count = 0
+        self.entities = list()
+
+        self.camera_following_entity_index = 0
 
 
 class PositionDifference(object):
