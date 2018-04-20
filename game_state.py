@@ -44,7 +44,7 @@ class GameState(object):
         self.player_bitmaps = list()
         self.camera_pos = WorldPosition()
 
-        self.player_index_for_controller = list()
+        self.player_index_for_controller = [-1 for x in range(4)]
         self.entity_count = 0
         self.entities = list()
 

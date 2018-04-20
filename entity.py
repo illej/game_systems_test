@@ -10,8 +10,5 @@ class Entity(object):
         self.height = h
         self.facing_direction = None
         self.state = '..'
-        self.R = 0
-        self.G = 0
-        self.B = 0
-
+        self.colour = None
         self.exists = False

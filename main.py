@@ -266,7 +266,7 @@ def weld_maps(maps):
 def get_entity(game_state, index):
     entity = None
 
-    if 0 < index < game_state.entity_count:
+    if 0 <= index < game_state.entity_count:
         entity = game_state.entities[index]
 
     return entity
@@ -280,7 +280,24 @@ def add_entity(game_state):
 
     entity_index = game_state.entities.index(entity)
 
+    print('f_add_entity():')
+    print('entities[]: ', game_state.entities)
+    print('entity_count: ', game_state.entity_count)
+    print('entity_index: ', entity_index)
+
     return entity_index
+
+
+def add_player(game_state, world, controller):
+    entity_index = add_entity(game_state)
+    controlling_entity = get_entity(game_state, entity_index)
+
+    initialize_player(world, controlling_entity)
+    game_state.player_index_for_controller[controller.get_id()] = entity_index
+
+    print('player_index_for_controller[]: ', game_state.player_index_for_controller)
+
+    return controlling_entity
 
 
 def initialize_player(world, entity):
@@ -290,6 +307,7 @@ def initialize_player(world, entity):
     entity.pos.tile.y = 3
     entity.pos.rel.x = 0.5
     entity.pos.rel.y = 0.5
+    entity.colour = BLUE
 
 
 def move_player(game_state, world, player, dd_player_pos, delta):
@@ -361,32 +379,45 @@ def move_player(game_state, world, player, dd_player_pos, delta):
             player.pos.tile_z -= 1
 
     # Determine facing direction
-    if absolute_value(dd_player_pos.x) > absolute_value(dd_player_pos.y):
-        if dd_player_pos.x > 0:
+    if absolute_value(player.pos.d.x) > absolute_value(player.pos.d.y):
+        if player.pos.d.x > 0:
             player.facing_direction = 1  # east
         else:
             player.facing_direction = 3  # west
-    elif absolute_value(dd_player_pos.x) < absolute_value(dd_player_pos.y):
-        if dd_player_pos.y > 0:
+    elif absolute_value(player.pos.d.x) < absolute_value(player.pos.d.y):
+        if player.pos.d.y > 0:
             player.facing_direction = 2  # south
         else:
             player.facing_direction = 0  # north
 
 
 class Keyboard(object):
-    def get_keys(self):
+    def __init__(self, id):
+        self.id = id
+
+    def get_id(self):
+        return self.id
+
+    def get_buttons(self):
         return pygame.key.get_pressed()
 
 
 def main():
     pygame.joystick.init()
 
-    controllers = [x360.Controller(i) for i in range(pygame.joystick.get_count())]
+    controllers = []
+    controller_index = 0
+
+    for i in range(controller_index, pygame.joystick.get_count()):
+        controllers.append(x360.Controller(controller_index))
+        controller_index += 1
+
+    controllers.append(Keyboard(controller_index))
+
     if controllers:
-        print('> gamepads found ({}) {}'.format(len(controllers), controllers))
-    else:
-        print('> no controllers found. use keyboard for input.')
-    controllers.append(Keyboard())
+        print('> gamepads found ({})'.format(len(controllers)))
+        for con in controllers:
+            print('\t{} {}'.format(con.get_id(), con))
 
     __elapsed = 0
     __debug_update_rate = 0.3
@@ -471,11 +502,12 @@ def main():
     camera_pos.tile.x = world.tile_map.tile_count_x / 2
     camera_pos.tile.y = world.tile_map.tile_count_y / 2
 
-    player = Entity(world.tile_side_in_metres * 0.5, world.tile_side_in_metres * 0.5)
-    player.pos.tile.x = 3
-    player.pos.tile.y = 3
-    player.pos.rel.x = 0.5
-    player.pos.rel.y = 0.5
+    # player = Entity(world.tile_side_in_metres * 0.5, world.tile_side_in_metres * 0.5)
+    # player.pos.tile.x = 3
+    # player.pos.tile.y = 3
+    # player.pos.rel.x = 0.5
+    # player.pos.rel.y = 0.5
+    player = Entity()
 
     player_bitmap = PlayerBitmaps()
     player_bitmap.align_x = world.tile_side_in_pixels / 2
@@ -486,18 +518,20 @@ def main():
     baddy.pos.tile.y = 5
     baddy.pos.rel.x = 0.5
     baddy.pos.rel.y = 0.5
+    baddy.colour = RED
     baddy.exists = True
 
-    game_state.entities.append(baddy)
+    # game_state.entities.append(baddy)
 
     baddy_2 = Entity(world.tile_side_in_metres * 0.5, world.tile_side_in_metres * 0.5)
     baddy_2.pos.tile.x = 10
     baddy_2.pos.tile.y = 1
     baddy_2.pos.rel.x = 0.2
     baddy_2.pos.rel.y = 0.2
+    baddy_2.colour = RED
     baddy_2.exists = True
 
-    game_state.entities.append(baddy_2)
+    # game_state.entities.append(baddy_2)
 
     centre = Vector2(SURFACE.get_width() / 2,
                      SURFACE.get_height() / 2)
@@ -515,15 +549,17 @@ def main():
                 sys.exit()
 
         for controller in controllers:
-            controlling_entity = get_entity(game_state, controller.get_id())
+            entity_index = game_state.player_index_for_controller[controller.get_id()]
+            controlling_entity = get_entity(game_state, entity_index)  # controller.get_id())
             if controlling_entity:
                 dd_player_pos = Vector2(0, 0)
 
                 if isinstance(controller, x360.Controller):
                     left_x, left_y = controller.get_left_stick()
                     dd_player_pos = Vector2(left_x, left_y)
+
                 elif isinstance(controller, Keyboard):  # is digital (keyboard)
-                    keys = controller.get_keys()
+                    keys = controller.get_buttons()
 
                     if keys[K_UP] is 1:
                         dd_player_pos.y = -1
@@ -536,13 +572,16 @@ def main():
 
                 move_player(game_state, world, controlling_entity, dd_player_pos, delta)
             else:
-                start = controller.get_buttons()[7]  # TODO: maybe need a unified controller class for controllers and keyboards??
-                if start:
-                    entity_index = add_entity(game_state)
-                    controlling_entity = get_entity(game_state, entity_index)
-                    initialize_player(world, controlling_entity)
-                    game_state.player_index_for_controller[entity_index] = entity_index
-                    # TODO: epi 46 @ 47 mins
+                if isinstance(controller, x360.Controller):
+                    start = controller.get_buttons()[7]
+                    if start:
+                        controlling_entity = add_player(game_state, world, controller)
+                        player = controlling_entity  # TODO: this is bad lol
+                elif isinstance(controller, Keyboard):
+                    start = controller.get_buttons()[K_SPACE]
+                    if start:
+                        controlling_entity = add_player(game_state, world, controller)
+                        player = controlling_entity  # TODO: this is bad lol
 
         camera_following_entity = get_entity(game_state, game_state.camera_following_entity_index)
         if camera_following_entity:
@@ -612,7 +651,7 @@ def main():
                                entity_ground_x, entity_ground_y,
                                world.metres_to_pixels * e.width,
                                world.metres_to_pixels * e.height,
-                               RED,
+                               e.colour,
                                align_x=world.metres_to_pixels * (e.width / 2),
                                align_y=world.metres_to_pixels * (e.height / 2))
 
@@ -651,8 +690,8 @@ def main():
         draw_debug_text(world, 'fps : {}'.format(__fps))
         draw_debug_text(world, 'delta : {}'.format(__delta), y_offset=15)
 
-        draw_debug_text(world, 'd : [{}, {}]'.format(player.pos.d.x, player.pos.d.y), x_offset=player_ground_x, y_offset=player_ground_y)
-        draw_debug_text(world, 'dd : [{}, {}]'.format(dd_player_pos.x, dd_player_pos.y), x_offset=player_ground_x, y_offset=15+player_ground_y)
+        # draw_debug_text(world, 'd : [{}, {}]'.format(player.pos.d.x, player.pos.d.y), x_offset=player_ground_x, y_offset=player_ground_y)
+        # draw_debug_text(world, 'dd : [{}, {}]'.format(dd_player_pos.x, dd_player_pos.y), x_offset=player_ground_x, y_offset=15+player_ground_y)
 
         pygame.display.update()
         CLOCK.tick(FPS)
