@@ -78,6 +78,19 @@ def absolute_value(f):
     return abs(f)
 
 
+def square_root(f):
+    # return f**(.5)
+    return math.sqrt(f)
+
+
+def minimum(a, b):
+    return a if a < b else b
+
+
+def maximum(a, b):
+    return a if a > b else b
+
+
 def get_controller(index):
     result = None
     pygame.joystick.init()
@@ -311,8 +324,11 @@ def initialize_player(world, entity):
 
 
 def move_player(game_state, world, player, dd_player_pos, delta):
-    if dd_player_pos.x != 0 and dd_player_pos.y != 0:
-        dd_player_pos *= 0.7071067811865475
+    # TODO: change 'd_' and '.d' to velocity, and 'dd_' and '.dd' to acceleration
+
+    ddP_length = length_sq(dd_player_pos)
+    if ddP_length > 1:  # square of 1 is 1
+        dd_player_pos *= (1 / square_root(ddP_length))
 
     player_speed = 50  # m/s^2 TODO: move to Entity or GameState?
     dd_player_pos *= player_speed
@@ -325,7 +341,7 @@ def move_player(game_state, world, player, dd_player_pos, delta):
     new_player_pos.d = (dd_player_pos * delta) + player.pos.d
     new_player_pos = re_canonical_position(world, new_player_pos)
 
-    if 1:  # OLD MOVEMENT CODE. THIS IS OVER. IT'S DONE.
+    if 1:  # OLD Collision Detection
         collided = False
         collision_pos = WorldPosition()
 
@@ -348,26 +364,47 @@ def move_player(game_state, world, player, dd_player_pos, delta):
             player.pos.d = player.pos.d - r * inner(player.pos.d, r) * 1
         else:
             player.pos = deepcopy(new_player_pos)
-    else:  # END OF WEIRD MOVEMENT CODE
-        min_tile_x = 0
-        min_tile_y = 0
-        one_past_max_tile_x = 0
-        one_past_max_tile_y = 0
-        best_player_pos = deepcopy(player.pos)
-        best_distance_sq = length_sq(player_delta)
+    else:
+        # NEW Collision Detection
+        min_tile_x = minimum(old_player_pos.tile.x, new_player_pos.tile.x)
+        min_tile_y = minimum(old_player_pos.tile.y, new_player_pos.tile.y)
+        one_past_max_tile_x = maximum(old_player_pos.tile.x, new_player_pos.tile.x) + 1
+        one_past_max_tile_y = maximum(old_player_pos.tile.y, new_player_pos.tile.y) + 1
+
+        abs_tile_z = player.pos.tile_z
+        t_closest = 1  # length_sq(player_delta)
         tile = Vector2(world.tile_side_in_metres, world.tile_side_in_metres)
 
-        for y in range(world.tile_map.tile_count_y):
-            for x in range(world.tile_map.tile_count_x):
-                test_tile_pos = centred_tile_point(x, y)
-                tile_value = get_tile_value_unchecked(world, x, y)
-                if tile_value is 0:
+        abs_tile_y = min_tile_y
+        while abs_tile_y != one_past_max_tile_y:
+            abs_tile_y += 1
+
+            abs_tile_x = min_tile_x
+            while abs_tile_x != one_past_max_tile_x:
+                abs_tile_x += 1
+
+                test_tile_pos = centred_tile_point(abs_tile_x, abs_tile_y)  # add tile.z
+                tile_value = get_tile_value_unchecked(world,  # TODO: overload the 'get_tile_*()' ?
+                                                      test_tile_pos.tile.x,
+                                                      test_tile_pos.tile.y)
+                if tile_value is 1:  # function for this?
                     min_corner = tile * -0.5
                     max_corner = tile * 0.5
 
-                    diff = subtract(world, test_tile_pos, new_player_pos)
-                    test_pos = closest_point_in_rectangle(min_corner, max_corner, diff)
-                    # TODO: ep 46
+                    rel_old_player_pos = subtract(world, old_player_pos, test_tile_pos)  # tile v2 is 0, 0
+                    rel_movement = rel_old_player_pos.d_xy
+
+                    wall_x = max_corner.x
+
+                    if player_delta.x != 0:
+                        t_result = (wall_x - rel_movement.x) / player_delta.x
+                        y = rel_movement.y + t_result*player_delta.y
+
+                        if 0 <= t_result < t_closest:
+                            if min_corner.y <= y <= max_corner.y:
+                                t_closest = t_result
+                                # TODO: ep 48 @ 15~ mins
+
 
     # Update for camera movement
     if not are_on_same_tile(old_player_pos, player.pos):
@@ -548,6 +585,8 @@ def main():
                 pygame.quit()
                 sys.exit()
 
+        # TODO: ep 47 to finish off player movement
+
         for controller in controllers:
             entity_index = game_state.player_index_for_controller[controller.get_id()]
             controlling_entity = get_entity(game_state, entity_index)  # controller.get_id())
@@ -590,6 +629,7 @@ def main():
             diff = subtract(world, camera_following_entity.pos, game_state.camera_pos)
             # code to snap camera along x and y tilemaps
 
+        # TODO: pass entity list, and let the AI find valid targets in the list of entities?
         baddy.mov.update(re_canonical_position, world, world.tile_map, baddy, player, delta)
         baddy_2.mov.update(re_canonical_position, world, world.tile_map, baddy_2, player, delta)
 

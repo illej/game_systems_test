@@ -53,7 +53,7 @@ class GameState(object):
 
 class PositionDifference(object):
     def __init__(self):
-        self.d_xy = 0
+        self.d_xy = Vector2(0, 0)
         self.d_z = 0
 
 

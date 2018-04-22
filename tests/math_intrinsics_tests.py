@@ -16,3 +16,15 @@ def test_round_01():
 def test_floor_01():
     assert floor_float(1.3) == 1
     assert floor_float(-1.3) == -2
+
+
+def test_sqrt():
+    assert square_root(25) == 5
+    assert math.sqrt(25) == 5
+
+
+def test_min_max():
+    assert minimum(1, 2) == 1
+    assert minimum(2, 1) == 1
+    assert maximum(1, 2) == 2
+    assert maximum(2, 1) == 2
