@@ -12,3 +12,5 @@ class Entity(object):
         self.state = '..'
         self.colour = None
         self.exists = False
+        self.collision_region = None
+        self.new_pos = WorldPosition()

@@ -1,3 +1,4 @@
 {
+  "math_intrinsics_tests.py::test_wall": true,
   "round_test.py::test_v2_01": true
 }

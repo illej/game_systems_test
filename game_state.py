@@ -18,12 +18,12 @@ class TileMap(object):
 
 
 class WorldPosition(object):
-    def __init__(self):
-        self.tile = Vector2(0, 0)
+    def __init__(self, tile=(0, 0), rel=(0, 0)):
+        self.tile = Vector2(tile[0], tile[1])
         self.tile_x = 0
         self.tile_y = 0
         self.tile_z = 0  # for tracking z level for camera
-        self.rel = Vector2(0, 0)
+        self.rel = Vector2(rel[0], rel[1])  # TODO: make this protected?
         self.rel_x = 0  # tile-relative x and y
         self.rel_y = 0
         self.d = Vector2(0, 0)

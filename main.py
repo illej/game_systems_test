@@ -37,8 +37,11 @@ def truncate_float(f):
 
 
 def floor_float(f):
-    result = math.floor(f)
-    return result
+    return math.floor(f)
+
+
+def ceiling_float(f):
+    return math.ceil(f)
 
 
 def round_float_to_int(f):
@@ -108,16 +111,21 @@ def draw_rectangle(buffer, x, y, width, height, colour, align_x=0, align_y=0):
     max_x = round_float_to_int(width)
     max_y = round_float_to_int(height)
 
-    if min_x < 0:
-        min_x = 0
-    if min_y < 0:
-        min_y = 0
-    if max_x > buffer.get_width():
-        max_x = buffer.get_width()
-    if max_y > buffer.get_width():
-        max_y = buffer.get_width()
+    # TODO: this draws things that are off-screen up against the egde. could be useful later on!
+    # if min_x < 0:
+    #     min_x = 0
+    # if min_y < 0:
+    #     min_y = 0
+    # if max_x > buffer.get_width():
+    #     max_x = buffer.get_width()
+    # if max_y > buffer.get_width():
+    #     max_y = buffer.get_width()
 
     pygame.draw.rect(buffer, colour, (min_x, min_y, max_x, max_y))
+
+
+def draw_line(buffer, colour, start_x, start_y, end_x, end_y):
+    pygame.draw.line(buffer, colour, (start_x, start_y), (end_x, end_y))
 
 
 def draw_debug_text(world, contents, entity=None, x_offset=0, y_offset=0):
@@ -133,6 +141,59 @@ def draw_debug_text(world, contents, entity=None, x_offset=0, y_offset=0):
         text_rect.top = y_offset
 
     SURFACE.blit(text_surface, text_rect)
+
+
+def draw_debug_collision_box(world, reg, player, centre):
+    pts = {
+        'top_left': WorldPosition(tile=(reg[0], reg[1]), rel=(0, 0)),
+        'top_right': WorldPosition(tile=(reg[2], reg[1]), rel=(1, 0)),
+        'bottom_left': WorldPosition(tile=(reg[0], reg[3]), rel=(0, 1)),
+        'bottom_right': WorldPosition(tile=(reg[2], reg[3]), rel=(1, 1))
+    }
+
+    # top
+    start_diff = subtract(world, pts['top_left'], player.pos)
+    start_x = centre.x + start_diff.d_xy.x * world.metres_to_pixels
+    start_y = centre.y + start_diff.d_xy.y * world.metres_to_pixels
+
+    end_diff = subtract(world, pts['top_right'], player.pos)
+    end_x = centre.x + end_diff.d_xy.x * world.metres_to_pixels
+    end_y = centre.y + end_diff.d_xy.y * world.metres_to_pixels
+
+    draw_line(SURFACE, GREEN, start_x, start_y, end_x, end_y)
+
+    # bottom
+    start_diff = subtract(world, pts['bottom_left'], player.pos)
+    start_x = centre.x + start_diff.d_xy.x * world.metres_to_pixels
+    start_y = centre.y + start_diff.d_xy.y * world.metres_to_pixels
+
+    end_diff = subtract(world, pts['bottom_right'], player.pos)
+    end_x = centre.x + end_diff.d_xy.x * world.metres_to_pixels
+    end_y = centre.y + end_diff.d_xy.y * world.metres_to_pixels
+
+    draw_line(SURFACE, GREEN, start_x, start_y, end_x, end_y)
+
+    # left
+    start_diff = subtract(world, pts['top_left'], player.pos)
+    start_x = centre.x + start_diff.d_xy.x * world.metres_to_pixels
+    start_y = centre.y + start_diff.d_xy.y * world.metres_to_pixels
+
+    end_diff = subtract(world, pts['bottom_left'], player.pos)
+    end_x = centre.x + end_diff.d_xy.x * world.metres_to_pixels
+    end_y = centre.y + end_diff.d_xy.y * world.metres_to_pixels
+
+    draw_line(SURFACE, GREEN, start_x, start_y, end_x, end_y)
+
+    # right
+    start_diff = subtract(world, pts['top_right'], player.pos)
+    start_x = centre.x + start_diff.d_xy.x * world.metres_to_pixels
+    start_y = centre.y + start_diff.d_xy.y * world.metres_to_pixels
+
+    end_diff = subtract(world, pts['bottom_right'], player.pos)
+    end_x = centre.x + end_diff.d_xy.x * world.metres_to_pixels
+    end_y = centre.y + end_diff.d_xy.y * world.metres_to_pixels
+
+    draw_line(SURFACE, GREEN, start_x, start_y, end_x, end_y)
 
 
 def is_tile_map_point_empty(world, tile_map, test_tile_x, test_tile_y):
@@ -174,9 +235,9 @@ def get_tile_map(world, tile_map_x, tile_map_y):
 
 
 def canon_coord(world, tile, rel):
-    offset = floor_float(rel / world.tile_side_in_metres)  # world.tile_side_in_pixels  # truncate_float(x / world.tile_width)
-    tile += offset
-    rel -= offset * world.tile_side_in_metres  # world.tile_side_in_pixels
+    tile_offset = floor_float(rel / world.tile_side_in_metres)  # world.tile_side_in_pixels  # truncate_float(x / world.tile_width)
+    tile += tile_offset
+    rel -= tile_offset * world.tile_side_in_metres  # world.tile_side_in_pixels
 
     assert rel >= 0
     assert rel <= world.tile_side_in_metres  # world.tile_side_in_pixels
@@ -189,6 +250,15 @@ def re_canonical_position(world, old_pos):
 
     result.tile.x, result.rel.x = canon_coord(world, result.tile.x, result.rel.x)
     result.tile.y, result.rel.y = canon_coord(world, result.tile.y, result.rel.y)
+
+    return result
+
+
+def offset(world, pos, rel_offset):
+    result = deepcopy(pos)
+
+    result.rel += rel_offset
+    result = re_canonical_position(world, result)
 
     return result
 
@@ -316,11 +386,31 @@ def add_player(game_state, world, controller):
 def initialize_player(world, entity):
     # entity = Entity(w=world.tile_side_in_metres * 0.5, h=world.tile_side_in_metres * 0.5)
     entity.exists = True
+    entity.width = world.tile_side_in_metres * 1  # 0.5
+    entity.height = world.tile_side_in_metres * 1  # 0.5
     entity.pos.tile.x = 3
     entity.pos.tile.y = 3
     entity.pos.rel.x = 0.5
     entity.pos.rel.y = 0.5
     entity.colour = BLUE
+
+
+def check_wall(wall_x, rel_x, rel_y, player_delta_x, player_delta_y,
+               t_min, min_corner_y, max_corner_y):
+    result = t_min
+    hit = False
+    t_epsilon = 0.00001
+
+    if player_delta_x != 0:
+        t_result = (wall_x - rel_x) / player_delta_x
+        y = rel_y + t_result * player_delta_y
+
+        if 0 <= t_result < t_min:
+            if min_corner_y <= y <= max_corner_y:
+                result = maximum(0, (t_result - t_epsilon))
+                hit = True
+
+    return result, hit
 
 
 def move_player(game_state, world, player, dd_player_pos, delta):
@@ -334,14 +424,23 @@ def move_player(game_state, world, player, dd_player_pos, delta):
     dd_player_pos *= player_speed
     dd_player_pos += player.pos.d * -10  # friction
 
-    old_player_pos = deepcopy(player.pos)
-    new_player_pos = deepcopy(old_player_pos)
-    player_delta = (dd_player_pos * 0.5) * square(delta) + (player.pos.d * delta)
-    new_player_pos.rel = player_delta + new_player_pos.rel
-    new_player_pos.d = (dd_player_pos * delta) + player.pos.d
-    new_player_pos = re_canonical_position(world, new_player_pos)
+    if 0:  # OLD - WORKS
+        old_player_pos = deepcopy(player.pos)
+        new_player_pos = deepcopy(old_player_pos)
 
-    if 1:  # OLD Collision Detection
+        player_delta = (dd_player_pos * 0.5) * square(delta) + (player.pos.d * delta)
+        new_player_pos.rel = player_delta + new_player_pos.rel
+        new_player_pos.d = (dd_player_pos * delta) + player.pos.d
+
+        new_player_pos = re_canonical_position(world, new_player_pos)
+    else:  # NEW - WORKS
+        old_player_pos = deepcopy(player.pos)
+
+        player_delta = (dd_player_pos * 0.5 * square(delta) + (player.pos.d * delta))
+        player.pos.d = dd_player_pos * delta + player.pos.d
+        new_player_pos = offset(world, player.pos, player_delta)
+
+    if 0:  # OLD Collision Detection - WORKS
         collided = False
         collision_pos = WorldPosition()
 
@@ -366,45 +465,85 @@ def move_player(game_state, world, player, dd_player_pos, delta):
             player.pos = deepcopy(new_player_pos)
     else:
         # NEW Collision Detection
-        min_tile_x = minimum(old_player_pos.tile.x, new_player_pos.tile.x)
-        min_tile_y = minimum(old_player_pos.tile.y, new_player_pos.tile.y)
-        one_past_max_tile_x = maximum(old_player_pos.tile.x, new_player_pos.tile.x) + 1
-        one_past_max_tile_y = maximum(old_player_pos.tile.y, new_player_pos.tile.y) + 1
+
+        min_tile_x = minimum(player.pos.tile.x, new_player_pos.tile.x)
+        min_tile_y = minimum(player.pos.tile.y, new_player_pos.tile.y)
+        max_tile_x = maximum(player.pos.tile.x, new_player_pos.tile.x)
+        max_tile_y = maximum(player.pos.tile.y, new_player_pos.tile.y)
+
+        entity_tile_width = ceiling_float(player.width / world.tile_side_in_metres)
+        entity_tile_height = ceiling_float(player.height / world.tile_side_in_metres)
+
+        min_tile_x -= entity_tile_width
+        min_tile_y -= entity_tile_height
+        max_tile_x += entity_tile_width
+        max_tile_y += entity_tile_height
+
+        player.collision_region = (min_tile_x, min_tile_y,
+                                   max_tile_x, max_tile_y)
+        player.new_pos = new_player_pos
 
         abs_tile_z = player.pos.tile_z
-        t_closest = 1  # length_sq(player_delta)
-        tile = Vector2(world.tile_side_in_metres, world.tile_side_in_metres)
 
-        abs_tile_y = min_tile_y
-        while abs_tile_y != one_past_max_tile_y:
-            abs_tile_y += 1
+        t_remaining = 1
 
-            abs_tile_x = min_tile_x
-            while abs_tile_x != one_past_max_tile_x:
-                abs_tile_x += 1
+        for iteration in range(4):
+            if t_remaining is 0:
+                break
 
-                test_tile_pos = centred_tile_point(abs_tile_x, abs_tile_y)  # add tile.z
-                tile_value = get_tile_value_unchecked(world,  # TODO: overload the 'get_tile_*()' ?
-                                                      test_tile_pos.tile.x,
-                                                      test_tile_pos.tile.y)
-                if tile_value is 1:  # function for this?
-                    min_corner = tile * -0.5
-                    max_corner = tile * 0.5
+            t_min = 1
+            wall_normal = Vector2(0, 0)
 
-                    rel_old_player_pos = subtract(world, old_player_pos, test_tile_pos)  # tile v2 is 0, 0
-                    rel_movement = rel_old_player_pos.d_xy
+            assert (max_tile_x - min_tile_x) < 32
+            assert (max_tile_y - min_tile_y) < 32
 
-                    wall_x = max_corner.x
+            for abs_tile_y in range(min_tile_y, max_tile_y + 1):
+                for abs_tile_x in range(min_tile_x, max_tile_x + 1):
 
-                    if player_delta.x != 0:
-                        t_result = (wall_x - rel_movement.x) / player_delta.x
-                        y = rel_movement.y + t_result*player_delta.y
+                    test_tile_pos = centred_tile_point(abs_tile_x, abs_tile_y)  # add tile.z
+                    tile_value = get_tile_value_unchecked(world,  # TODO: overload the 'get_tile_*()' ?
+                                                          test_tile_pos.tile.x,
+                                                          test_tile_pos.tile.y)
+                    if tile_value is 1:  # function for this?
+                        diameter_w = world.tile_side_in_metres + player.width  # TODO: change player to entity
+                        diameter_h = world.tile_side_in_metres + player.height
 
-                        if 0 <= t_result < t_closest:
-                            if min_corner.y <= y <= max_corner.y:
-                                t_closest = t_result
-                                # TODO: ep 48 @ 15~ mins
+                        min_corner = Vector2(diameter_w, diameter_h) * -0.5
+                        max_corner = Vector2(diameter_w, diameter_h) * 0.5
 
+                        rel_old_player_pos = subtract(world, player.pos, test_tile_pos)  # tile v2 is 0, 0
+                        rel_movement = rel_old_player_pos.d_xy
+
+                        t_min, hit = check_wall(min_corner.x,
+                                               rel_movement.x, rel_movement.y,
+                                               player_delta.x, player_delta.y,
+                                               t_min,
+                                               min_corner.y, max_corner.y)
+                        if hit:
+                            wall_normal = Vector2(-1, 0)
+                        t_min, hit = check_wall(max_corner.x,
+                                               rel_movement.x, rel_movement.y,
+                                               player_delta.x, player_delta.y,
+                                               t_min,
+                                               min_corner.y, max_corner.y)
+                        if hit:
+                            wall_normal = Vector2(1, 0)
+                        t_min, hit = check_wall(min_corner.y,
+                                               rel_movement.y, rel_movement.x,
+                                               player_delta.y, player_delta.x,
+                                               t_min,
+                                               min_corner.x, max_corner.x)
+                        if hit:
+                            wall_normal = Vector2(0, -1)
+                        t_min, hit = check_wall(max_corner.y, rel_movement.y, rel_movement.x,
+                                                player_delta.y, player_delta.x,
+                                                t_min, min_corner.x, max_corner.x)
+                        if hit:
+                            wall_normal = Vector2(0, 1)
+            player.pos = offset(world, player.pos, player_delta * t_min)  # player.pos -> old_player_pos
+            player.pos.d = player.pos.d - wall_normal * inner(player.pos.d, wall_normal) * 1
+            player_delta = player_delta - wall_normal * inner(player_delta, wall_normal) * 1
+            t_remaining -= t_min*t_remaining
 
     # Update for camera movement
     if not are_on_same_tile(old_player_pos, player.pos):
@@ -558,7 +697,7 @@ def main():
     baddy.colour = RED
     baddy.exists = True
 
-    # game_state.entities.append(baddy)
+    game_state.entities.append(baddy)
 
     baddy_2 = Entity(world.tile_side_in_metres * 0.5, world.tile_side_in_metres * 0.5)
     baddy_2.pos.tile.x = 10
@@ -568,7 +707,7 @@ def main():
     baddy_2.colour = RED
     baddy_2.exists = True
 
-    # game_state.entities.append(baddy_2)
+    game_state.entities.append(baddy_2)
 
     centre = Vector2(SURFACE.get_width() / 2,
                      SURFACE.get_height() / 2)
@@ -630,8 +769,8 @@ def main():
             # code to snap camera along x and y tilemaps
 
         # TODO: pass entity list, and let the AI find valid targets in the list of entities?
-        baddy.mov.update(re_canonical_position, world, world.tile_map, baddy, player, delta)
-        baddy_2.mov.update(re_canonical_position, world, world.tile_map, baddy_2, player, delta)
+        # baddy.mov.update(re_canonical_position, world, world.tile_map, baddy, player, delta)
+        # baddy_2.mov.update(re_canonical_position, world, world.tile_map, baddy_2, player, delta)
 
         # ----- RENDER ----- #
 
@@ -672,19 +811,19 @@ def main():
                 draw_rectangle(SURFACE, min.x, min.y, max.x, max.y, grey)
 
         # draw entities TODO: for loop
-        player_ground_x = centre.x
-        player_ground_y = centre.y
-        draw_rectangle(SURFACE,
-                       player_ground_x, player_ground_y,
-                       world.metres_to_pixels*player.width,
-                       world.metres_to_pixels*player.height,
-                       BLUE,
-                       align_x=world.metres_to_pixels*(player.width / 2),
-                       align_y=world.metres_to_pixels*(player.height / 2))
+        # player_ground_x = centre.x
+        # player_ground_y = centre.y
+        # draw_rectangle(SURFACE,
+        #                player_ground_x, player_ground_y,
+        #                world.metres_to_pixels*player.width,
+        #                world.metres_to_pixels*player.height,
+        #                GREEN)
+                       # align_x=world.metres_to_pixels*(player.width / 2),  # 30 px
+                       # align_y=world.metres_to_pixels*(player.height / 2))  # 30 px
 
         for e in game_state.entities:
             if e.exists:
-                diff = subtract(world, e.pos, player.pos)
+                diff = subtract(world, e.pos, player.pos)  # TODO: change player to camera
                 entity_ground_x = centre.x + diff.d_xy.x * world.metres_to_pixels
                 entity_ground_y = centre.y + diff.d_xy.y * world.metres_to_pixels
                 draw_rectangle(SURFACE,
@@ -727,11 +866,26 @@ def main():
             __delta = delta
             __elapsed = 0
 
+        # frame data
         draw_debug_text(world, 'fps : {}'.format(__fps))
         draw_debug_text(world, 'delta : {}'.format(__delta), y_offset=15)
 
         # draw_debug_text(world, 'd : [{}, {}]'.format(player.pos.d.x, player.pos.d.y), x_offset=player_ground_x, y_offset=player_ground_y)
         # draw_debug_text(world, 'dd : [{}, {}]'.format(dd_player_pos.x, dd_player_pos.y), x_offset=player_ground_x, y_offset=15+player_ground_y)
+
+        # new pos
+        diff = subtract(world, player.new_pos, player.pos)
+        new_ground_x = centre.x + diff.d_xy.x * world.metres_to_pixels
+        new_ground_y = centre.y + diff.d_xy.y * world.metres_to_pixels
+        draw_line(SURFACE, GREEN, centre.x, centre.y, new_ground_x, new_ground_y)
+
+        # collision search box
+        if player.collision_region:
+            draw_debug_collision_box(world, player.collision_region, player, centre)
+
+        # screen debug lines
+        draw_line(SURFACE, GREEN, 0, SURFACE.get_height()/2, SURFACE.get_width(), SURFACE.get_height()/2)
+        draw_line(SURFACE, GREEN, SURFACE.get_width()/2, 0, SURFACE.get_width()/2, SURFACE.get_height())
 
         pygame.display.update()
         CLOCK.tick(FPS)

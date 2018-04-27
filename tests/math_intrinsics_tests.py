@@ -11,6 +11,7 @@ def test_round_01():
     assert round_float_to_int(1.7) == 2
     assert round_float_to_int(1.8) == 2
     assert round_float_to_int(1.9) == 2
+    assert round_float_to_int(30) == 30
 
 
 def test_floor_01():
