@@ -464,7 +464,7 @@ def move_player(game_state, world, player, dd_player_pos, delta):
         else:
             player.pos = deepcopy(new_player_pos)
     else:
-        # NEW Collision Detection
+        # NEW Collision Detection TODO: fix alignment of collision region ep 49!!!!
 
         min_tile_x = minimum(player.pos.tile.x, new_player_pos.tile.x)
         min_tile_y = minimum(player.pos.tile.y, new_player_pos.tile.y)
